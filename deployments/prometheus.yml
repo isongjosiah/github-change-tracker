@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s # How frequently to scrape targets
+
+scrape_configs:
+  - job_name: 'your-server'
+    static_configs:
+      - targets: ['your-server:8080'] # Scrape your custom server
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8888'] # Scrape metrics from the collector itself
