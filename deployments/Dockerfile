@@ -2,7 +2,7 @@
 
 # Use a multi-stage build for a smaller final image
 # Stage 1: Build
-FROM --platform=linux/amd64 golang:1.22.3-alpine AS builder
+FROM --platform=linux/amd64 golang:1.24.2-alpine AS builder
 
 # Set build-time arguments and environment variables
 ARG PORT=8080 # Provide a default port
@@ -28,7 +28,7 @@ COPY . .
 # Use -ldflags to embed version information and strip unnecessary symbols
 RUN go build -o bin/${NAME} \
     -ldflags "-X main.Version=${VERSION} -s -w" \
-    ./cmd/lend/main.go
+    ./cmd/app/main.go
 
 # Stage 2: Run
 FROM --platform=linux/amd64 alpine:3.19.1
@@ -47,7 +47,7 @@ COPY --from=builder /app/bin/${NAME} /usr/local/bin/${NAME}
 EXPOSE ${PORT}
 
 # Run the application
-CMD ["/usr/local/bin/${NAME}"]
+CMD /usr/local/bin/pooler
 
 # Optional HEALTHCHECK instruction for better orchestration
 # HEALTHCHECK --interval=30s --timeout=3s \

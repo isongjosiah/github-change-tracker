@@ -2,12 +2,12 @@ version: '3.8'
 
 services:
   # Your Custom Server Application
-  your-server:
+  heimdall:
     build:
-      context: ./your-server # Path to your server's Dockerfile and application code
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: deployments/Dockerfile
     ports:
-      - "8080:8080" # Example port: host_port:container_port
+      - "8080:8080"
     environment:
       # Example environment variables for your server
       - DATABASE_URL=postgresql://user:password@postgres:5432/mydatabase
@@ -58,13 +58,13 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml # Prometheus configuration
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml # Prometheus configuration
       - prometheus_data:/prometheus # Persistent data volume
-    command: --config.file=/etc/prometheus/prometheus.yml --web.enable-remote-write-receiver
+    command: --config.file=/etc/prometheus/prometheus.yaml --web.enable-remote-write-receiver
     networks:
       - my-network
     depends_on:
-      - your-server # Assuming your server exposes /metrics endpoint
+      - heimdall
       - otel-collector
     restart: unless-stopped
 
@@ -91,7 +91,7 @@ services:
     image: otel/opentelemetry-collector:latest
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
-      - ./opentelemetry/otel-collector-config.yaml:/etc/otel-collector-config.yaml # Collector configuration
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml # Collector configuration
     ports:
       - "4317:4317" # gRPC (for OTLP)
       - "4318:4318" # HTTP (for OTLP)

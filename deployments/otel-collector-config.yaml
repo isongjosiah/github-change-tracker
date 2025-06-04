@@ -9,8 +9,8 @@ processors:
 
 exporters:
   prometheus:
-    endpoint: "0.0.0.0:8888" # The collector exposes its own metrics here
-  logging:
+    endpoint: "0.0.0.0:8889" # The collector exposes its own metrics here
+  debug:
     verbosity: detailed
 
 service:
@@ -18,12 +18,12 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging] # Add other exporters like Jaeger or Zipkin here
+      exporters: [debug] # Add other exporters like Jaeger or Zipkin here
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [prometheus, logging] # Metrics from your server
+      exporters: [prometheus, debug] # Metrics from your server
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging] # Add other exporters like Loki here
+      exporters: [debug] # Add other exporters like Loki here

@@ -32,7 +32,7 @@ type Config struct {
 	MaximumDBConn int `env:"MAX_DB_CONNECTION" envDefault:"10"`
 
 	// RMQUrl contains the connection string for the RabbitMQ (or other AMQP) server.
-	RMQUrl string `env:"RMQ_URL,required,notEmpty,unset"`
+	RMQUrl string `env:"RABBITMQ_URL,required,notEmpty,unset"`
 
 	Version        string
 	Environment    string
