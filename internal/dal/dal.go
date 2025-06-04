@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"heimdall/internal/config"
+	"heimdall/internal/dal/model"
 	"log"
 	"os"
 	"sync"
@@ -51,7 +52,10 @@ func connectSQLDAL(config *config.Config) *bun.DB {
 // corresponding tables in the database if they do not already exist.
 func CreateTables(Conn *bun.DB) error {
 	// Define the list of models for which tables should be created.
-	models := []interface{}{}
+	models := []any{
+		&model.Commit{},
+		&model.Repository{},
+	}
 
 	var wg sync.WaitGroup
 	errors := make(chan error, len(models))
@@ -76,8 +80,8 @@ func CreateTables(Conn *bun.DB) error {
 		}(model)
 	}
 
-	wg.Wait()     // Wait for all table creation goroutines to finish.
-	close(errors) // Close the error channel once all goroutines are done.
+	wg.Wait()
+	close(errors)
 
 	// Check if any errors occurred during table creation and return the first error encountered.
 	for err := range errors {
@@ -103,7 +107,9 @@ type TableIndex struct {
 func CreateIndex(Conn *bun.DB) error {
 	// Define all indexes to be created.
 	// Keys are pointers to the model structs, values are TableIndex definitions.
-	indexesToCreate := map[any][]TableIndex{}
+	indexesToCreate := map[any][]TableIndex{
+		// TODO: create the indexes
+	}
 
 	var wg sync.WaitGroup
 	errors := make(chan error, len(indexesToCreate)*2)

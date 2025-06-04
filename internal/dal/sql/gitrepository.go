@@ -1,0 +1,107 @@
+package sql
+
+import (
+	"context"
+	"errors"
+	"heimdall/internal/dal"
+	"heimdall/internal/dal/model"
+	"heimdall/internal/dal/repositories"
+	"strings"
+
+	"github.com/uptrace/bun"
+)
+
+// GitRepoStorage implements the IGitRepository interface, providing
+// database operations for Git repositories using bun ORM.
+type GitRepoStorage struct {
+	// DB is the bun database client for direct database interactions.
+	DB *bun.DB
+
+	// CommitStorage is an interface for accessing commit-related operations.
+	// This allows for separation of concerns and easier testing.
+	CommitStorage repositories.IRepositoryCommit
+}
+
+// NewGitRepoStorage creates and returns a new instance of GitRepoStorage.
+// It takes a bun.DB instance and an implementation of IRepositoryCommit.
+func NewGitRepoStorage(db *bun.DB, commitStorage repositories.IRepositoryCommit) repositories.IGitRepository {
+	return &GitRepoStorage{
+		DB:            db,
+		CommitStorage: commitStorage,
+	}
+}
+
+// Add inserts a new repository into the database.
+// It returns the created repository with its generated ID and any error encountered.
+func (r *GitRepoStorage) Add(ctx context.Context, rep model.Repository) (model.Repository, error) {
+	_, err := dal.GetDB(ctx, r.DB).
+		NewInsert().
+		Returning("*").
+		Model(&rep).Exec(ctx)
+
+	return rep, err
+}
+
+// GetByURL retrieves a single repository from the database by its URL.
+// It can selectively fetch columns if specified, otherwise, it fetches all columns.
+func (r *GitRepoStorage) GetByURL(ctx context.Context, url string, columns ...string) (model.Repository, error) {
+	var repo model.Repository
+	query := dal.GetDB(ctx, r.DB).
+		NewSelect().
+		Model(&repo)
+	if len(columns) == 0 {
+		query.Column("*")
+	} else {
+		query.Column(strings.Join(columns, ","))
+	}
+
+	err := query.Scan(ctx)
+
+	return repo, err
+}
+
+// List retrieves a paginated list of repositories from the database.
+// It supports cursor pagination using lastId and perPage, and can selectively fetch columns.
+func (r *GitRepoStorage) List(ctx context.Context, lastId, perPage int, columns ...string) ([]model.Repository, error) {
+	if perPage < 1 {
+		perPage = 10
+	}
+
+	var repos []model.Repository
+	query := dal.GetDB(ctx, r.DB).
+		NewSelect().
+		Model(&repos).Order("id ASC")
+	if len(columns) == 0 {
+		query.Column("*")
+	} else {
+		query.Column(strings.Join(columns, ","))
+	}
+	if lastId > 0 {
+		query.Where("id > ?", lastId)
+	}
+
+	err := query.Scan(ctx)
+
+	return repos, err
+}
+
+// Commits retrieves all commits associated with a given repository name.
+// It first fetches the repository ID by name, then uses the CommitStorage
+// to list commits for that ID.
+func (r *GitRepoStorage) Commits(ctx context.Context, repoName string, lastCommitId, perPage int) ([]model.Commit, error) {
+	var repo model.Repository
+	err := r.DB.NewSelect().
+		Model(&repo).
+		Where("name = ?", repoName).
+		Column("id").
+		Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.CommitStorage == nil {
+		return nil, errors.New("CommitStorage is not initialized")
+	}
+
+	return r.CommitStorage.ListByRepoID(ctx, repo.ID, lastCommitId, perPage)
+}
