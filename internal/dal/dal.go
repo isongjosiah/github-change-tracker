@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"heimdall/internal/config"
 	"heimdall/internal/dal/model"
+	"heimdall/internal/dal/repositories"
 	"log"
 	"os"
 	"sync"
@@ -21,7 +22,9 @@ import (
 // and providing interfaces to interact with different data entities.
 type DAL struct {
 	// SqlDB is the Bun DB client for interacting with the PostgreSQL database.
-	SqlDB *bun.DB
+	SqlDB   *bun.DB
+	Commit  repositories.IRepositoryCommit
+	GitRepo repositories.IGitRepository
 }
 
 // connectSQLDAL establishes a connection to the PostgreSQL database using the provided configuration.
@@ -198,7 +201,10 @@ func NewDAL(cfg *config.Config) *DAL {
 	log.Println("Ensured all necessary database indexes exist.")
 
 	// Return the initialized DAL instance with concrete implementations for sub-DALs.
+	commitDAL := NewRepositoryCommitStorage(sqlDB)
 	return &DAL{
-		SqlDB: sqlDB,
+		SqlDB:   sqlDB,
+		Commit:  commitDAL,
+		GitRepo: NewGitRepoStorage(sqlDB, commitDAL),
 	}
 }

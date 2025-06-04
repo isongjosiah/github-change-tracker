@@ -1,9 +1,8 @@
-package sql
+package dal
 
 import (
 	"context"
 	"errors"
-	"heimdall/internal/dal"
 	"heimdall/internal/dal/model"
 	"heimdall/internal/dal/repositories"
 	"strings"
@@ -34,7 +33,7 @@ func NewGitRepoStorage(db *bun.DB, commitStorage repositories.IRepositoryCommit)
 // Add inserts a new repository into the database.
 // It returns the created repository with its generated ID and any error encountered.
 func (r *GitRepoStorage) Add(ctx context.Context, rep model.Repository) (model.Repository, error) {
-	_, err := dal.GetDB(ctx, r.DB).
+	_, err := GetDB(ctx, r.DB).
 		NewInsert().
 		Returning("*").
 		Model(&rep).Exec(ctx)
@@ -46,7 +45,7 @@ func (r *GitRepoStorage) Add(ctx context.Context, rep model.Repository) (model.R
 // It can selectively fetch columns if specified, otherwise, it fetches all columns.
 func (r *GitRepoStorage) GetByURL(ctx context.Context, url string, columns ...string) (model.Repository, error) {
 	var repo model.Repository
-	query := dal.GetDB(ctx, r.DB).
+	query := GetDB(ctx, r.DB).
 		NewSelect().
 		Model(&repo)
 	if len(columns) == 0 {
@@ -68,7 +67,7 @@ func (r *GitRepoStorage) List(ctx context.Context, lastId, perPage int, columns 
 	}
 
 	var repos []model.Repository
-	query := dal.GetDB(ctx, r.DB).
+	query := GetDB(ctx, r.DB).
 		NewSelect().
 		Model(&repos).Order("id ASC")
 	if len(columns) == 0 {
@@ -90,7 +89,7 @@ func (r *GitRepoStorage) List(ctx context.Context, lastId, perPage int, columns 
 // to list commits for that ID.
 func (r *GitRepoStorage) Commits(ctx context.Context, repoName string, lastCommitId, perPage int) ([]model.Commit, error) {
 	var repo model.Repository
-	err := r.DB.NewSelect().
+	err := GetDB(ctx, r.DB).NewSelect().
 		Model(&repo).
 		Where("name = ?", repoName).
 		Column("id").

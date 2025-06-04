@@ -1,11 +1,10 @@
-package sql
+package dal
 
 import (
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"heimdall/internal/dal"
 	"heimdall/internal/dal/model"
 	"heimdall/internal/dal/repositories"
 	"strconv"
@@ -35,7 +34,7 @@ func (r *RepositoryCommitStorage) Add(ctx context.Context, commits []model.Commi
 		return nil
 	}
 
-	_, err := dal.GetDB(ctx, r.DB).
+	_, err := GetDB(ctx, r.DB).
 		NewInsert().
 		Model(&commits).
 		Exec(ctx)
@@ -51,7 +50,7 @@ func (r *RepositoryCommitStorage) ListByRepoID(ctx context.Context, repoId, last
 	}
 
 	var commits []model.Commit
-	query := dal.GetDB(ctx, r.DB).
+	query := GetDB(ctx, r.DB).
 		NewSelect().
 		Model(&commits).
 		Where("repo_id = ?", repoId).
@@ -85,7 +84,7 @@ func (r *RepositoryCommitStorage) TopAuthors(ctx context.Context, topCount int) 
 		Count      int    `bun:"count"`
 	}
 
-	err := dal.GetDB(ctx, r.DB).
+	err := GetDB(ctx, r.DB).
 		NewSelect().
 		Table("commits").
 		ColumnExpr("commits.author_name, commits.repo_id, COUNT(*) AS count").
@@ -110,7 +109,7 @@ func (r *RepositoryCommitStorage) TopAuthors(ctx context.Context, topCount int) 
 		Count      int    `bun:"count"`
 	}
 
-	err = dal.GetDB(ctx, r.DB).
+	err = GetDB(ctx, r.DB).
 		NewSelect().
 		Table("commits").
 		ColumnExpr("commits.author_name, repositories.name AS repo_name, COUNT(*) AS count").

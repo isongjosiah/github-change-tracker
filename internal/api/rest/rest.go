@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"heimdall/internal/config"
 	dep "heimdall/internal/deps"
+	"heimdall/internal/logic"
 	"heimdall/internal/monitoring"
 	values "heimdall/internal/values"
 	"log"
@@ -22,6 +23,7 @@ import (
 type API struct {
 	Server    *http.Server
 	Config    *config.Config
+	Logic     *logic.Logic
 	Telemetry *monitoring.Telemetry
 	Metrics   *monitoring.Metrics
 }
@@ -47,15 +49,19 @@ func NewAPI(config *config.Config, dep *dep.Dependencies) (*API, error) {
 		return nil, fmt.Errorf("failed to initialize metrics: %w", err)
 	}
 
+	logic := logic.New(dep)
+
 	return &API{
 		Config:    config,
 		Telemetry: tel,
 		Metrics:   metrics,
+		Logic:     logic,
 	}, nil
 }
 
 // Serve starts the http server
 func (a *API) Serve() error {
+	fmt.Println(a)
 	a.Server = &http.Server{
 		Addr:           fmt.Sprintf(":%d", a.Config.HttpPort),
 		ReadTimeout:    5 * time.Second,
@@ -132,6 +138,8 @@ func (a *API) SetupServerHandler() http.Handler {
 			logger.Info("Unable to write health response")
 		}
 	})
+	mux.Mount("/commits", a.CommitRoutes())
+	mux.Mount("/repositories", a.RepositoryRoutes())
 
 	return mux
 }
