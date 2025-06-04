@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # Your Custom Server Application
+  heimdall:
+    build:
+      context: ../
+      dockerfile: deployments/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      # Example environment variables for your server
+      - DATABASE_URL=postgresql://user:password@postgres:5432/mydatabase
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    depends_on:
+      - postgres
+      - rabbitmq
+      - otel-collector
+    networks:
+      - my-network
+    volumes:
+      - ./your-server/logs:/app/logs # Example: Mount a volume for server logs
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:13
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: mydatabase
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persistent data volume
+    networks:
+      - my-network
+    restart: unless-stopped
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672" # AMQP port
+      - "15672:15672" # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq # Persistent data volume
+    networks:
+      - my-network
+    restart: unless-stopped
+
+  # Prometheus Monitoring System
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml # Prometheus configuration
+      - prometheus_data:/prometheus # Persistent data volume
+    command: --config.file=/etc/prometheus/prometheus.yaml --web.enable-remote-write-receiver
+    networks:
+      - my-network
+    depends_on:
+      - heimdall
+      - otel-collector
+    restart: unless-stopped
+
+  # Grafana Dashboard and Visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana # Persistent data volume
+      - ./grafana/provisioning:/etc/grafana/provisioning # Optional: Grafana provisioning
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: your_grafana_password
+    networks:
+      - my-network
+    depends_on:
+      - prometheus
+      - postgres # If Grafana is to store its own data in Postgres, though usually it uses SQLite by default or an external DB
+    restart: unless-stopped
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml # Collector configuration
+    ports:
+      - "4317:4317" # gRPC (for OTLP)
+      - "4318:4318" # HTTP (for OTLP)
+      - "13133:13133" # health check extension
+      - "8888:8888" # Prometheus metrics exposed by the collector
+    networks:
+      - my-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  my-network:
+    driver: bridge
