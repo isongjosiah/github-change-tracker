@@ -3,6 +3,7 @@ package main
 import (
 	"heimdall/internal/api/rest"
 	"heimdall/internal/config"
+	deps "heimdall/internal/deps"
 	"log"
 	"os"
 	"os/signal"
@@ -18,9 +19,11 @@ const (
 
 func main() {
 	appConfig := config.LoadConfig()
+	appDep := deps.New(appConfig)
 
-	restApi := rest.API{
-		Config: appConfig,
+	restApi, err := rest.NewAPI(appConfig, appDep)
+	if err != nil {
+		log.Fatal("failed to setup api -> ", err)
 	}
 
 	go func() {

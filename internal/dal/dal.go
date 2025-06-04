@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"heimdall/internal/config"
+	"heimdall/internal/dal/model"
+	"heimdall/internal/dal/repositories"
 	"log"
 	"os"
 	"sync"
@@ -20,7 +22,9 @@ import (
 // and providing interfaces to interact with different data entities.
 type DAL struct {
 	// SqlDB is the Bun DB client for interacting with the PostgreSQL database.
-	SqlDB *bun.DB
+	SqlDB   *bun.DB
+	Commit  repositories.IRepositoryCommit
+	GitRepo repositories.IGitRepository
 }
 
 // connectSQLDAL establishes a connection to the PostgreSQL database using the provided configuration.
@@ -51,7 +55,10 @@ func connectSQLDAL(config *config.Config) *bun.DB {
 // corresponding tables in the database if they do not already exist.
 func CreateTables(Conn *bun.DB) error {
 	// Define the list of models for which tables should be created.
-	models := []interface{}{}
+	models := []any{
+		&model.Commit{},
+		&model.Repository{},
+	}
 
 	var wg sync.WaitGroup
 	errors := make(chan error, len(models))
@@ -76,8 +83,8 @@ func CreateTables(Conn *bun.DB) error {
 		}(model)
 	}
 
-	wg.Wait()     // Wait for all table creation goroutines to finish.
-	close(errors) // Close the error channel once all goroutines are done.
+	wg.Wait()
+	close(errors)
 
 	// Check if any errors occurred during table creation and return the first error encountered.
 	for err := range errors {
@@ -103,7 +110,9 @@ type TableIndex struct {
 func CreateIndex(Conn *bun.DB) error {
 	// Define all indexes to be created.
 	// Keys are pointers to the model structs, values are TableIndex definitions.
-	indexesToCreate := map[any][]TableIndex{}
+	indexesToCreate := map[any][]TableIndex{
+		// TODO: create the indexes
+	}
 
 	var wg sync.WaitGroup
 	errors := make(chan error, len(indexesToCreate)*2)
@@ -192,7 +201,10 @@ func NewDAL(cfg *config.Config) *DAL {
 	log.Println("Ensured all necessary database indexes exist.")
 
 	// Return the initialized DAL instance with concrete implementations for sub-DALs.
+	commitDAL := NewRepositoryCommitStorage(sqlDB)
 	return &DAL{
-		SqlDB: sqlDB,
+		SqlDB:   sqlDB,
+		Commit:  commitDAL,
+		GitRepo: NewGitRepoStorage(sqlDB, commitDAL),
 	}
 }

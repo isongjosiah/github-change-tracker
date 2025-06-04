@@ -2,6 +2,7 @@ package dep
 
 import (
 	"heimdall/internal/config"
+	"heimdall/internal/dal"
 	"sync"
 )
 
@@ -13,7 +14,9 @@ var (
 // Dependencies struct will contain all the external services and components
 // that the application relies on (e.g., database connections, message queues,
 // HTTP clients, etc.).
-type Dependencies struct{}
+type Dependencies struct {
+	DAL dal.DAL
+}
 
 // New initializes and returns a singleton instance of the application's dependencies.
 // It takes a pointer to the application's configuration (`cfg`) as an argument,
@@ -28,7 +31,9 @@ type Dependencies struct{}
 // Returns a pointer to the initialized Dependencies instance.
 func New(cfg *config.Config) *Dependencies {
 	once.Do(func() {
-		dep = &Dependencies{}
+		dep = &Dependencies{
+			DAL: *dal.NewDAL(cfg),
+		}
 	})
 
 	return dep
