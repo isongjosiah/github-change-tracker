@@ -8,6 +8,7 @@ import (
 	"heimdall/internal/dal/model"
 	"heimdall/internal/dal/repositories"
 	"strconv"
+	"time"
 
 	"github.com/uptrace/bun"
 )
@@ -135,4 +136,27 @@ func (r *RepositoryCommitStorage) TopAuthors(ctx context.Context, topCount int) 
 	}
 
 	return topAuthorsList, nil
+}
+
+// ResetCommitsFrom deletes all commits for a given repository that occurred on or after a specified time.
+// This is typically used to re-sync commit history from a certain point.
+//
+// Parameters:
+//
+//	ctx:        The context for the database operation (e.g., for cancellation or timeouts).
+//	repoId:     The unique identifier of the repository whose commits are to be reset.
+//	resetTime:  The timestamp from which commits should be deleted (inclusive).
+//
+// Returns:
+//
+//	error: An error if the database operation fails, otherwise nil.
+func (r *RepositoryCommitStorage) ResetCommitsFrom(ctx context.Context, repoId int, resetTime time.Time) error {
+	var repo model.Commit
+	_, err := GetDB(ctx, r.DB).
+		NewDelete().
+		Model(&repo).
+		Where("repo_id = ?", repoId).
+		Where("date >= ?", resetTime).
+		Exec(context.Background())
+	return err
 }

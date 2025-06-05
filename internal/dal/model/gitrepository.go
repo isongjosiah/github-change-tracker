@@ -126,3 +126,9 @@ func (r NewRepository) Payload() ([]byte, error) {
 func (r NewRepository) Type() string {
 	return "new-repository"
 }
+
+type ResetCommitReq struct {
+	RepoOwner string    `json:"repo_owner,omitempty"`
+	RepoName  string    `json:"repo_name,omitempty"`
+	ResetFrom time.Time `json:"reset_from"`
+}

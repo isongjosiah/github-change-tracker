@@ -43,7 +43,7 @@ func NewService(config *config.Config) *Service {
 }
 
 // ListCommit retrieves commits from the GitHub API
-func (s Service) ListCommit(repoOwner, repoName string, startAt time.Time, link string) ([]Commit, string, error) {
+func (s Service) ListCommit(ctx context.Context, repoOwner, repoName string, startAt time.Time, link string) ([]Commit, string, error) {
 	path := fmt.Sprintf("/repos/%s/%s/commits", repoOwner, repoName)
 	endpoint := BaseUrl + path
 

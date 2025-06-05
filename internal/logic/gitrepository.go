@@ -30,10 +30,10 @@ type RepositoryLogic struct {
 	DB            *bun.DB
 	Repo          repositories.IGitRepository
 	Commit        repositories.IRepositoryCommit
-	GitHubService github.Service
+	GitHubService github.IRepositoryService
 }
 
-func NewRepositoryLogic(db *bun.DB, gitRepo repositories.IGitRepository, commitRepo repositories.IRepositoryCommit, githubService github.Service) *RepositoryLogic {
+func NewRepositoryLogic(db *bun.DB, gitRepo repositories.IGitRepository, commitRepo repositories.IRepositoryCommit, githubService github.IRepositoryService) *RepositoryLogic {
 	return &RepositoryLogic{
 		DB:            db,
 		Repo:          gitRepo,
@@ -79,7 +79,7 @@ func (r *RepositoryLogic) Create(ctx context.Context, repo model.NewRepository) 
 		repo.URL = fmt.Sprintf("https://github.com/%s/%s", repo.RepoOwner, repo.RepoName)
 	}
 
-	repository, err := r.Repo.GetByURL(ctx, repo.URL)
+	repository, err := r.Repo.GetByURL(ctx, repo.URL, false)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return value.Error, "Something went wrong. Please try again", errors.Wrap(err, "Failed to check for repository existence")
 	}
@@ -145,7 +145,7 @@ func (r *RepositoryLogic) handleRepositoryAddition(ctx context.Context, delivery
 		repo.URL = fmt.Sprintf("https://github.com/%s/%s", repo.RepoOwner, repo.RepoName)
 	}
 
-	repository, err := r.Repo.GetByURL(ctx, repo.URL, "id")
+	repository, err := r.Repo.GetByURL(ctx, repo.URL, false, "id")
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return errors.Wrap(err, "Failed to check if repository exist")
 	}
@@ -221,7 +221,7 @@ func (r *RepositoryLogic) handleCommitPull(ctx context.Context, delivery amqp091
 		return err
 	}
 
-	commits, link, err := r.GitHubService.ListCommit(repo.RepoOwner, repo.RepoName, repo.LastFetched, "")
+	commits, link, err := r.GitHubService.ListCommit(ctx, repo.RepoOwner, repo.RepoName, repo.LastFetched, "")
 	if err != nil {
 		fmt.Println("failed to retrieve commits ->", err.Error())
 		return err
@@ -230,8 +230,6 @@ func (r *RepositoryLogic) handleCommitPull(ctx context.Context, delivery amqp091
 	if err != nil {
 		return err
 	}
-	fmt.Println("commits -> ", commits)
-	fmt.Println("parsedLink -> ", parsedLink)
 
 	// if there is no last page. There is only one page.
 	// handle that
@@ -266,7 +264,7 @@ func (r *RepositoryLogic) handleCommitPull(ctx context.Context, delivery amqp091
 	// start from the last page because github is sorted in descending order
 	for link != "" {
 
-		commits, newLink, err := r.GitHubService.ListCommit(repo.RepoOwner, repo.RepoName, time.Time{}, link)
+		commits, newLink, err := r.GitHubService.ListCommit(ctx, repo.RepoOwner, repo.RepoName, time.Time{}, link)
 		if err != nil {
 			return err
 		}
@@ -308,4 +306,48 @@ func (r *RepositoryLogic) handleCommitPull(ctx context.Context, delivery amqp091
 	}
 
 	return nil
+}
+
+func (r *RepositoryLogic) ResetCommitFromDate(ctx context.Context, payload model.ResetCommitReq) (string, string, error) {
+	if payload.RepoName == "" {
+		return value.BadRequest, "Repository name is required", errors.New("repository name is required")
+	}
+	if payload.ResetFrom.IsZero() {
+		return value.BadRequest, "Reset date must be provided", errors.New("reset date must be provided")
+	}
+
+	msg := fmt.Sprintf("%s/%s commit reset successful", payload.RepoOwner, payload.RepoName)
+	status := value.Success
+	err := r.DB.RunInTx(ctx, &sql.TxOptions{}, func(ctx context.Context, tx bun.Tx) error {
+		ctx = dal.WithTx(ctx, tx)
+		repo, err := r.Repo.GetByURL(ctx, fmt.Sprintf("https://github.com/%s/%s", payload.RepoOwner, payload.RepoName), true)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				status = value.NotFound
+				msg = fmt.Sprintf("Repository %s/%s does not exist", payload.RepoOwner, payload.RepoName)
+				return err
+			}
+			status = value.Error
+			msg = "Something went wrong. Pleasse try again"
+			return err
+		}
+
+		if err := r.Commit.ResetCommitsFrom(ctx, repo.ID, payload.ResetFrom); err != nil {
+			status = value.Error
+			msg = "Somethign went wrong. Please try again"
+			return errors.Wrap(err, "Failed to reset commit for repository")
+		}
+
+		err = r.Repo.Update(ctx, repo.ID, map[string]any{
+			"last_fetched": payload.ResetFrom,
+		})
+		if err != nil {
+			status = value.Error
+			msg = "Somethign went wrong. Please try again"
+			return errors.Wrap(err, "Failed to update commit for repository")
+		}
+		return nil
+	})
+
+	return status, msg, err
 }

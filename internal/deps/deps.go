@@ -19,7 +19,7 @@ var (
 // HTTP clients, etc.).
 type Dependencies struct {
 	DAL           dal.DAL
-	GitHubService github.Service
+	GitHubService github.IRepositoryService
 }
 
 // New initializes and returns a singleton instance of the application's dependencies.

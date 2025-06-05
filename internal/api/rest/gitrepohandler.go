@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"heimdall/internal/dal/model"
+	value "heimdall/internal/values"
 	values "heimdall/internal/values"
 	"heimdall/pkg/function"
 	"net/http"
@@ -16,7 +17,7 @@ func (a *API) RepositoryRoutes() chi.Router {
 
 	router.Method(http.MethodPost, "/", Handler(a.AddRepositoryToMonitorH))
 	router.Method(http.MethodGet, "/commits", Handler(a.GetRepositoryCommitsH))
-	// router.Method(http.MethodGet, "/reset-collection-date", Handler(a.ResetCollectionDateH))
+	router.Method(http.MethodGet, "/reset-collection-date", Handler(a.ResetRepositoryCommits))
 
 	return router
 }
@@ -54,5 +55,23 @@ func (a *API) GetRepositoryCommitsH(w http.ResponseWriter, r *http.Request) *Ser
 		Status:     status,
 		StatusCode: function.StatusCode(status),
 		Payload:    repoCommits,
+	}
+}
+
+func (a *API) ResetRepositoryCommits(w http.ResponseWriter, r *http.Request) *ServerResponse {
+	var data model.ResetCommitReq
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		return RespondWithError(err, "Bad request body", value.BadRequest, http.StatusBadRequest)
+	}
+
+	status, message, err := a.Logic.Repository.ResetCommitFromDate(context.Background(), data)
+	if err != nil {
+		return RespondWithError(err, message, status, function.StatusCode(status))
+	}
+
+	return &ServerResponse{
+		Message:    message,
+		Status:     status,
+		StatusCode: function.StatusCode(status),
 	}
 }

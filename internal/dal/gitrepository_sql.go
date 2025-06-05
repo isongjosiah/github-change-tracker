@@ -45,17 +45,20 @@ func (r *GitRepoStorage) Add(ctx context.Context, rep model.Repository) (model.R
 
 // GetByURL retrieves a single repository from the database by its URL.
 // It can selectively fetch columns if specified, otherwise, it fetches all columns.
-func (r *GitRepoStorage) GetByURL(ctx context.Context, url string, columns ...string) (model.Repository, error) {
+func (r *GitRepoStorage) GetByURL(ctx context.Context, url string, forUpdate bool, columns ...string) (model.Repository, error) {
 	var repo model.Repository
 	query := GetDB(ctx, r.DB).
 		NewSelect().
 		Model(&repo)
-	if len(columns) == 0 {
-		query.Column("*")
+	if len(columns) >= 0 && columns[0] != "" {
+		query.Column(columns[0])
 	} else {
-		query.Column(strings.Join(columns, ","))
+		query.Column("*")
 	}
 	query.Where("url = ?", url)
+	if forUpdate {
+		query.For("UPDATE")
+	}
 
 	err := query.Scan(ctx)
 
