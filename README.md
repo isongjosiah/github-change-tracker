@@ -48,19 +48,31 @@ for monitoring and metrics
 ## User Flow
 
 1. **Repository Addition:**
-   - User submits a GitHub repository URL (validated by regex).
-   - URL is verified and pushed to the RabbitMQ queue.
+
+![Repository Addition Sequence Diagram](https://github.com/isongjosiah/github-change-tracker/blob/main/assets/Add%20Repository%20Seq%20Diagram.png)
+
+- User submits a GitHub repository URL (validated by regex).
+- URL is verified and pushed to the RabbitMQ queue.
+
 2. **Worker Processing:**
    - Worker picks up the task, checks if the repository exists.
    - If new, creates a repository record in the DB.
    - Triggers subsequent events to fetch commit data using the last commit timestamp stored.
 3. **Commit Retrieval:**
+
    - Workers fetch commits from GitHub, handling pagination and redirects.
    - Batch insert commits within a DB transaction, update last commit info atomically.
-4. **Retry Mechanism:**
-   - Scheduler periodically enqueues pull tasks for all repositories.
-   - Retries failed fetches up to a configured number of attempts.
-   - Logs errors with context (start index, count) for manual inspection.
+
+4. Scheduled Commit Retrieval:
+
+![Scheduled Commit Retrieval Sequence Diagram](https://github.com/isongjosiah/github-change-tracker/blob/main/assets/Pool%20Commit%20Seq%20Diagram.png)
+
+5. **Retry Mechanism:**
+
+- Scheduler periodically enqueues pull tasks for all repositories.
+- Retries failed fetches up to a configured number of attempts.
+- Logs errors with context (start index, count) for manual inspection.
+
 5. **Rate Limiting & Coordination:**
    - Workers monitor GitHub API rate limit headers.
    - On hitting limits, workers communicate via channels to pause processing.
