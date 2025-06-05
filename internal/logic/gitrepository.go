@@ -76,7 +76,7 @@ func (r *RepositoryLogic) Create(ctx context.Context, repo model.NewRepository) 
 	}
 
 	repository, err := r.Repo.GetByURL(ctx, repo.URL, "id")
-	if err != nil {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return value.Error, "Something went wrong. Please try again", errors.Wrap(err, "Failed to check for repository existence")
 	}
 	if repository.ID != 0 {
