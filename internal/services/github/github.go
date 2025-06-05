@@ -59,7 +59,7 @@ func (s Service) ListCommit(repoOwner, repoName string, startAt time.Time, link 
 	}
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.Wrap(err, "Failed to create request to retrieve commits")
 	}
 	if s.authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+s.authToken)
@@ -67,16 +67,22 @@ func (s Service) ListCommit(repoOwner, repoName string, startAt time.Time, link 
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.Wrap(err, "Failed to execute request for commits")
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, "", errors.New("")
+		var data map[string]any
+		if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
+			return []Commit{}, "", errors.Wrap(err, "Failed to decode commits detail")
+		}
+		fmt.Println("data ->", data)
+
+		return nil, "", errors.New(fmt.Sprintf("Failed to fetch commits -> %v", res.StatusCode))
 	}
 
 	var payload []Commit
 	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
-		return payload, "", err
+		return payload, "", errors.Wrap(err, "Failed to decode commits detail")
 	}
 
 	return payload, res.Header.Get("Link"), nil
@@ -92,7 +98,6 @@ func (s Service) GetRepository(ctx context.Context, repoOwner, repoName string) 
 		return nil, err
 	}
 
-	fmt.Println(s.authToken)
 	if s.authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+s.authToken)
 	}

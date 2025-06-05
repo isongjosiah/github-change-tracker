@@ -7,6 +7,7 @@ import (
 	"heimdall/internal/config"
 	"log"
 	"log/slog"
+	"runtime/debug"
 	"time"
 
 	"github.com/pkg/errors"
@@ -87,6 +88,9 @@ func (rc RMQConsumer) Consume() {
 		defer func() {
 			r := recover()
 			if r != nil {
+				s := debug.Stack()
+				fmt.Printf("Recovered from panic!\n%+v\nStack Trace -> %s\n", r, string(s))
+
 				var err error
 				switch t := r.(type) {
 				case string:

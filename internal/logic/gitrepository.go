@@ -31,10 +31,12 @@ type RepositoryLogic struct {
 	GitHubService github.Service
 }
 
-func NewRepositoryLogic(db *bun.DB, gitRepo repositories.IGitRepository) *RepositoryLogic {
+func NewRepositoryLogic(db *bun.DB, gitRepo repositories.IGitRepository, commitRepo repositories.IRepositoryCommit, githubService github.Service) *RepositoryLogic {
 	return &RepositoryLogic{
-		DB:   db,
-		Repo: gitRepo,
+		DB:            db,
+		Repo:          gitRepo,
+		Commit:        commitRepo,
+		GitHubService: githubService,
 	}
 }
 
@@ -161,10 +163,11 @@ func (r *RepositoryLogic) handleRepositoryAddition(ctx context.Context, delivery
 		if err != nil {
 			return errors.Wrap(err, "Failed to add repository to DB")
 		}
+		fmt.Println(repo)
 
 		err = (messagequeue.RMQProducer{
 			Queue: messagequeue.PullCommit,
-		}).PublishMessage(repo)
+		}).PublishMessage(repo.PullCommitTask())
 
 		return err
 	})
@@ -204,19 +207,20 @@ func (r *RepositoryLogic) scheduleRepositoryPool() {
 // It fetches commits from GitHub, transforms them, and stores them in the database.
 // It also updates the repository's last fetched timestamp.
 func (r *RepositoryLogic) handleCommitPull(ctx context.Context, delivery amqp091.Delivery) error {
-	fmt.Println("handling commits")
 	var repo model.CommitPullJob
 	err := json.Unmarshal(delivery.Body, &repo)
 	if err != nil {
+		fmt.Println("failed to handle commit pulls ->", err.Error())
 		return err
 	}
 
 	commits, link, err := r.GitHubService.ListCommit(repo.RepoOwner, repo.RepoName, repo.LastFetched, "")
 	if err != nil {
+		fmt.Println("failed to retrieve commits ->", err.Error())
 		return err
 	}
 
-	newCommit := make([]model.Commit, len(commits))
+	newCommit := make([]model.Commit, 0)
 	for _, commit := range commits {
 		newCommit = append(newCommit, model.Commit{
 			Id:      cuid.New(),
@@ -228,16 +232,22 @@ func (r *RepositoryLogic) handleCommitPull(ctx context.Context, delivery amqp091
 		})
 	}
 
-	r.DB.RunInTx(ctx, &sql.TxOptions{}, func(ctx context.Context, tx bun.Tx) error {
+	err = r.DB.RunInTx(ctx, &sql.TxOptions{}, func(ctx context.Context, tx bun.Tx) error {
 		ctx = dal.WithTx(ctx, tx)
 		if err := r.Commit.Add(ctx, newCommit); err != nil {
 			return err
 		}
+		fmt.Println("persisted commits")
+
 		err := r.Repo.Update(ctx, repo.Id, map[string]any{
 			"last_fetched": newCommit[len(newCommit)-1].Date,
 		})
 		return err
 	})
+	if err != nil {
+		fmt.Println("failed to persist data -> ", err)
+		return err
+	}
 
 	for link != "" {
 		parsedLink, err := github.ParseLinkHeader(link)
@@ -251,7 +261,7 @@ func (r *RepositoryLogic) handleCommitPull(ctx context.Context, delivery amqp091
 		}
 		link = newLink
 
-		newCommit := make([]model.Commit, len(commits))
+		newCommit := make([]model.Commit, 0)
 		for _, commit := range commits {
 			newCommit = append(newCommit, model.Commit{
 				Id:      cuid.New(),
@@ -269,7 +279,7 @@ func (r *RepositoryLogic) handleCommitPull(ctx context.Context, delivery amqp091
 				return err
 			}
 			err := r.Repo.Update(ctx, repo.Id, map[string]any{
-				"last_fetched": newCommit[len(newCommit)-1].Date,
+				"last_fetched": newCommit[0].Date,
 			})
 			return err
 		})
