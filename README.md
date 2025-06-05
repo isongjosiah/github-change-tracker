@@ -34,7 +34,7 @@ for monitoring and metrics
 
 ## System Architecture
 
-![System Architecture Diagram](./assets/GitHub Tracking System.png)
+![System Architecture Diagram](https://github.com/isongjosiah/github-change-tracker/blob/main/assets/GitHub%20Tracking%20System.png)
 
 - **API Server Instance:** Stateless API servers receive repository URLs, validate them, and enqueue tasks for processing.
 - **Scheduler:** Periodically triggers polling tasks for repositories stored in the database, with retry logic for failures.
