@@ -111,27 +111,34 @@ func (r *RepositoryLogic) Create(ctx context.Context, repo model.NewRepository) 
 //
 //	A slice of `model.Commit` structs, representing the commits found for the repository.
 //	An error if the repository name is invalid or if the data retrieval fails.
-func (r *RepositoryLogic) ListCommitsByRepositoryName(ctx context.Context, query url.Values) ([]model.Commit, error) {
+func (r *RepositoryLogic) ListCommitsByRepositoryName(ctx context.Context, query url.Values) ([]model.Commit, string, string, error) {
 	// 1. Validate repository name presence
 	repoName := query.Get("repo-name")
-	if repoName == "" {
-		return nil, errors.New("repository name must be provided")
+	repoOwner := query.Get("repo-owner")
+	if repoName == "" || repoOwner == "" {
+		return nil, value.BadRequest, "Repository name and owner must be provided", errors.New("repository name and owner must be provided")
 	}
 
 	lastCommitId := function.StringToInt(query.Get("last-commit-id"))
 	perPage := function.StringToInt(query.Get("limit"))
 
-	// 2. Delegate the call to the IGitRepository's Commits method.
-	// This method in GitRepoStorage is assumed to handle finding the repo ID
-	// and then fetching commits using the IRepositoryCommit dependency.
-	commits, err := r.Repo.Commits(ctx, repoName, lastCommitId, perPage)
+	repo, err := r.Repo.GetByURL(ctx, fmt.Sprintf("https://github.com/%s/%s", repoOwner, repoName), false)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, value.NotFound, "Repository does not exist", errors.Wrap(err, "repository does not exist")
+		}
+
+		return nil, value.Error, "Something went wrong. Please try again", errors.Wrap(err, "unable to retrieve repository")
+	}
+
+	commits, err := r.Repo.Commits(ctx, repo.Name, lastCommitId, perPage)
 	if err != nil {
 		log.Printf("ERROR: RepositoryLogic.ListCommitsByRepositoryName - failed to retrieve commits for repo '%s': %v", repoName, err)
 		// Wrap the error to add context from the business logic layer.
-		return nil, fmt.Errorf("could not retrieve commits for repository '%s': %w", repoName, err)
+		return nil, value.Error, "Something went wrong. Please try again", errors.Wrap(err, fmt.Sprintf("could not retrieve commits for repository '%s'", repoName))
 	}
 
-	return commits, nil
+	return commits, value.Success, value.Success, nil
 }
 
 func (r *RepositoryLogic) handleRepositoryAddition(ctx context.Context, delivery amqp091.Delivery) error {

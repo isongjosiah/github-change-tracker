@@ -43,9 +43,7 @@ func (a *API) AddRepositoryToMonitorH(w http.ResponseWriter, r *http.Request) *S
 
 // GetRepositoryCommitsH handles request to retrieve paginated commit for an existing repository
 func (a *API) GetRepositoryCommitsH(w http.ResponseWriter, r *http.Request) *ServerResponse {
-	status := ""
-	message := ""
-	repoCommits, err := a.Logic.Repository.ListCommitsByRepositoryName(context.Background(), r.URL.Query())
+	repoCommits, status, message, err := a.Logic.Repository.ListCommitsByRepositoryName(context.Background(), r.URL.Query())
 	if err != nil {
 		return RespondWithError(err, message, status, function.StatusCode(status))
 	}
