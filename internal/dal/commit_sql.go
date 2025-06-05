@@ -87,9 +87,9 @@ func (r *RepositoryCommitStorage) TopAuthors(ctx context.Context, topCount int) 
 	err := GetDB(ctx, r.DB).
 		NewSelect().
 		Table("commits").
-		ColumnExpr("commits.author_name, commits.repo_id, COUNT(*) AS count").
+		ColumnExpr("commits.author, commits.repo_id, COUNT(*) AS count").
 		Join("JOIN repositories ON repositories.id = commits.repo_id").
-		Group("commits.author_name", "commits.repo_id").
+		Group("commits.author", "commits.repo_id").
 		Order("count DESC").
 		Limit(topCount).
 		Scan(ctx, &results)
@@ -104,7 +104,7 @@ func (r *RepositoryCommitStorage) TopAuthors(ctx context.Context, topCount int) 
 	var topAuthorsList []model.TopAuthor
 
 	var topAuthorQueryResults []struct {
-		AuthorName string `bun:"author_name"`
+		AuthorName string `bun:"author"`
 		RepoName   string `bun:"repo_name"`
 		Count      int    `bun:"count"`
 	}
@@ -112,9 +112,9 @@ func (r *RepositoryCommitStorage) TopAuthors(ctx context.Context, topCount int) 
 	err = GetDB(ctx, r.DB).
 		NewSelect().
 		Table("commits").
-		ColumnExpr("commits.author_name, repositories.name AS repo_name, COUNT(*) AS count").
+		ColumnExpr("commits.author, repositories.name AS repo_name, COUNT(*) AS count").
 		Join("JOIN repositories ON repositories.id = commits.repo_id").
-		Group("commits.author_name", "repositories.name").
+		Group("commits.author", "repositories.name").
 		Order("count DESC").
 		Limit(topCount).
 		Scan(ctx, &topAuthorQueryResults)

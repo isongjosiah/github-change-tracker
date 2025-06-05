@@ -4,6 +4,7 @@ import (
 	"context"
 	"heimdall/internal/dal/model"
 	"heimdall/internal/dal/repositories"
+	value "heimdall/internal/values"
 	"heimdall/pkg/function"
 	"net/url"
 )
@@ -38,12 +39,12 @@ func NewCommitLogic(commitRepo repositories.IRepositoryCommit) *CommitLogic {
 //	A slice of `model.TopAuthors` structs, each containing an author's name,
 //	the repository name they committed to, and their commit count.
 //	Returns an error if the underlying data retrieval fails.
-func (c *CommitLogic) TopAuthor(ctx context.Context, query url.Values) ([]model.TopAuthor, error) {
+func (c *CommitLogic) TopAuthor(ctx context.Context, query url.Values) ([]model.TopAuthor, string, string, error) {
 	topN := function.StringToInt(query.Get("author-count"))
 	payload, err := c.CommitRepo.TopAuthors(ctx, topN)
 	if err != nil {
 		// TODO: handle logging
-		return payload, err
+		return payload, value.Error, "Something went wrong. Please try again later", err
 	}
-	return payload, err
+	return payload, value.Success, "Top Authors retrieved", nil
 }

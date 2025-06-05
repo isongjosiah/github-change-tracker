@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"heimdall/pkg/function"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -15,15 +16,15 @@ func (a *API) CommitRoutes() chi.Router {
 }
 
 func (a *API) TopContributorsH(w http.ResponseWriter, r *http.Request) *ServerResponse {
-	topContributors, err := a.Logic.Commit.TopAuthor(context.Background(), r.URL.Query())
+	topContributors, status, messagge, err := a.Logic.Commit.TopAuthor(context.Background(), r.URL.Query())
 	if err != nil {
-		return RespondWithError(err, "", "", 1)
+		return RespondWithError(err, messagge, status, function.StatusCode(status))
 	}
 
 	return &ServerResponse{
-		Message:    "",
-		Status:     "",
-		StatusCode: http.StatusOK,
+		Message:    messagge,
+		Status:     status,
+		StatusCode: function.StatusCode(status),
 		Payload:    topContributors,
 	}
 }
