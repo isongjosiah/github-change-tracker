@@ -52,22 +52,40 @@ for monitoring and metrics
 ![Repository Addition Sequence Diagram](https://github.com/isongjosiah/github-change-tracker/blob/main/assets/Add%20Repository%20Seq%20Diagram.png)
 
 - User submits a GitHub repository URL (validated by regex).
-- URL is verified and pushed to the RabbitMQ queue.
+- URL / repo owner and name is verified and task pushed to the RabbitMQ queue.
+- Worker picks up the task, checks if the repository exists.
+- If new, creates a repository record in the DB.
+- Triggers subsequent task to commit retrieval queue to fetch commit data using
+  the last commit timestamp stored. At the point of creation, this is time.Time{}
+- Workers fetch commits from GitHub, handling pagination and redirects.
+- Batch insert commits pages and update repository last_fetched within a DB transaction.
 
-2. **Worker Processing:**
-   - Worker picks up the task, checks if the repository exists.
-   - If new, creates a repository record in the DB.
-   - Triggers subsequent events to fetch commit data using the last commit timestamp stored.
-3. **Commit Retrieval:**
-
-   - Workers fetch commits from GitHub, handling pagination and redirects.
-   - Batch insert commits within a DB transaction, update last commit info atomically.
-
-4. Scheduled Commit Retrieval:
+2. Scheduled Commit Retrieval:
 
 ![Scheduled Commit Retrieval Sequence Diagram](https://github.com/isongjosiah/github-change-tracker/blob/main/assets/Pool%20Commit%20Seq%20Diagram.png)
 
-5. **Retry Mechanism:**
+- The **scheduler** runs periodically to identify repositories needing commit updates.
+- It fetches repositories in **batches** from the database.
+- Each repository is selected **with a `FOR UPDATE` lock** to ensure exclusive access during scheduling.
+- This locking mechanism ensures that the only other operation that modifies a repository — `ResetCommitsFrom` — will **wait** if a commit fetch is already in progress.
+- For each selected repository, the scheduler **pushes a `PullCommitsTask`** to the commit queue.
+- A **worker** listens to the queue and consumes tasks.
+- For each task:
+  - The worker **pulls the latest commits** from the Git provider (e.g., GitHub).
+  - It performs all write operations within a **single transaction**, which includes:
+    - Storing the fetched commits in the database.
+    - Updating the `last_fetched` timestamp of the repository.
+- This process ensures:
+  - **Safe concurrent access** to repository data.
+  - **Transactional consistency** during updates.
+  - **Scalability** through decoupled scheduling and commit ingestion.
+
+3. Retrieve Repository Commits
+   Retrieve commits for a repository with **cursor-based pagination**
+
+#### Endpoint
+
+4. **Retry Mechanism:**
 
 - Scheduler periodically enqueues pull tasks for all repositories.
 - Retries failed fetches up to a configured number of attempts.
