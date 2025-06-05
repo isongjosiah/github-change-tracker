@@ -21,6 +21,7 @@ import (
 )
 
 type API struct {
+	Deps      *dep.Dependencies
 	Server    *http.Server
 	Config    *config.Config
 	Logic     *logic.Logic
@@ -56,6 +57,7 @@ func NewAPI(config *config.Config, dep *dep.Dependencies) (*API, error) {
 		Telemetry: tel,
 		Metrics:   metrics,
 		Logic:     logic,
+		Deps:      dep,
 	}, nil
 }
 

@@ -47,6 +47,9 @@ func connectSQLDAL(config *config.Config) *bun.DB {
 	if os.Getenv("ENVIRONMENT") != "live" && os.Getenv("ENVIRONMENT") != "production" {
 		conn.AddQueryHook(bundebug.NewQueryHook(bundebug.WithVerbose(true)))
 	}
+	if err := conn.Ping(); err != nil {
+		log.Fatal("failed to setup db")
+	}
 
 	return conn
 }

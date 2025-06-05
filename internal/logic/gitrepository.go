@@ -99,12 +99,14 @@ func (r *RepositoryLogic) ListCommitsByRepositoryName(ctx context.Context, query
 }
 
 func (r *RepositoryLogic) handleRepositoryAddition(ctx context.Context, delivery amqp091.Delivery) error {
+	fmt.Println("Adding repository")
 	// parse data
 	var repo model.NewRepository
 	err := json.Unmarshal(delivery.Body, &repo)
 	if err != nil {
 		return err
 	}
+	fmt.Println("repo ->", repo)
 
 	err = r.DB.RunInTx(ctx, &sql.TxOptions{}, func(ctx context.Context, tx bun.Tx) error {
 		ctx = dal.WithTx(ctx, tx)
@@ -113,18 +115,22 @@ func (r *RepositoryLogic) handleRepositoryAddition(ctx context.Context, delivery
 		if err != nil {
 			return err
 		}
+		fmt.Println("fetched repository")
 
 		repo, err := r.Repo.Add(ctx, *gitRepo)
 		if err != nil {
 			return err
 		}
+		fmt.Println("added repository")
 
 		if err := r.Queue.Publish(ctx, messagequeue.PullCommit, repo.PullCommitTask()); err != nil {
 			return err
 		}
+		fmt.Println("publish repository commit task")
 
 		return nil
 	})
+	fmt.Println("error adding repository -> ", err)
 	return err
 }
 

@@ -80,7 +80,12 @@ func (rc RMQConsumer) Consume() {
 			}
 		}()
 		for d := range messages {
-			rc.MsgHandler(context.Background(), d)
+			err := rc.MsgHandler(context.Background(), d)
+			if err != nil {
+				Nack(d)
+				continue
+			}
+			Ack(d)
 		}
 	}()
 }
