@@ -119,6 +119,7 @@ func (s Service) GetRepository(ctx context.Context, repoOwner, repoName string) 
 	parsedRepo := &model.Repository{
 		Owner:       repoOwner,
 		Name:        repoName,
+		URL:         fmt.Sprintf("https://github.com/%s/%s", repoOwner, repoName),
 		LastFetched: time.Time{},
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),

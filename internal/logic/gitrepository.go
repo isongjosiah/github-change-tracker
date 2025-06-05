@@ -75,7 +75,7 @@ func (r *RepositoryLogic) Create(ctx context.Context, repo model.NewRepository) 
 		repo.URL = fmt.Sprintf("https://github.com/%s/%s", repo.RepoOwner, repo.RepoName)
 	}
 
-	repository, err := r.Repo.GetByURL(ctx, repo.URL, "id")
+	repository, err := r.Repo.GetByURL(ctx, repo.URL)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return value.Error, "Something went wrong. Please try again", errors.Wrap(err, "Failed to check for repository existence")
 	}

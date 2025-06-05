@@ -9,7 +9,7 @@ import (
 // Repository represents a GitHub repository to be monitored by the system.
 type Repository struct {
 	// ID is a unique identifier for the repository within our system (e.g., "owner/name").
-	ID int `json:"id,omitempty" bun:"id,pk,autoincrement"`
+	ID int `json:"id" bun:"id,pk,autoincrement"`
 
 	// Owner is the GitHub username or organization name that owns the repository.
 	Owner string `json:"owner,omitempty" bun:"owner"`

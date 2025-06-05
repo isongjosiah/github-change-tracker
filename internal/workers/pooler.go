@@ -8,7 +8,6 @@ import (
 	"heimdall/internal/dal/model"
 	"heimdall/internal/dal/repositories"
 	"heimdall/internal/services/github"
-	"heimdall/internal/services/messagequeue"
 	"log"
 	"math/rand"
 	"sync"
@@ -31,7 +30,6 @@ type GitHubFetcher struct {
 	// Circuit breaker to manage external service calls.
 	circuitBreaker *gobreaker.CircuitBreaker
 	// RabbitMQ channel to publish messages.
-	queue messagequeue.TaskQueue
 	// Name of the RabbitMQ queue to publish to.
 	queueName string
 }
@@ -68,7 +66,6 @@ func NewGitHubFetcher(
 		repoStorage:    storage,
 		rateLimiter:    limiter,
 		circuitBreaker: cb,
-		queue:          messagequeue.NewRabbitMQTaskQueue(""),
 		queueName:      queueName,
 	}
 }
@@ -112,7 +109,6 @@ func (f *GitHubFetcher) FetchRepositoryInfo(ctx context.Context, repo *model.New
 	}
 
 	// Publish the repository info message to RabbitMQ.
-	f.queue.Publish(ctx, "", model.NewRepository{})
 	log.Printf("Fetched and published repository info for %s/%s to RabbitMQ", fetchedRepo.Owner, fetchedRepo.Name)
 
 	return nil
@@ -144,7 +140,7 @@ func (f *GitHubFetcher) FetchCommits(ctx context.Context, repo *model.Repository
 		// Simulate fetching 1-3 new commits.
 		numNewCommits := rand.Intn(3) + 1
 		for i := 0; i < numNewCommits; i++ {
-			newCommit := Commit{
+			newCommit := model.Commit{
 				Id:      fmt.Sprintf("%x", rand.Int63()), // Generate a random SHA-like ID.
 				RepoId:  repo.ID,                         // Link commit to its repository ID.
 				Message: fmt.Sprintf("Commit %d for %s/%s", i+1, repo.Owner, repo.Name),
