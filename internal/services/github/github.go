@@ -61,7 +61,9 @@ func (s Service) ListCommit(repoOwner, repoName string, startAt time.Time, link 
 	if err != nil {
 		return nil, "", err
 	}
-	req.Header.Set("Authorization", "Bearer "+s.authToken)
+	if s.authToken != "" {
+		req.Header.Set("Authorization", "Bearer "+s.authToken)
+	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -89,7 +91,11 @@ func (s Service) GetRepository(ctx context.Context, repoOwner, repoName string) 
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+s.authToken)
+
+	fmt.Println(s.authToken)
+	if s.authToken != "" {
+		req.Header.Set("Authorization", "Bearer "+s.authToken)
+	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -97,7 +103,12 @@ func (s Service) GetRepository(ctx context.Context, repoOwner, repoName string) 
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, errors.New("")
+		var dataRes map[string]any
+		if er := json.NewDecoder(res.Body).Decode(&dataRes); er != nil {
+			return nil, err
+		}
+		fmt.Println(dataRes)
+		return nil, errors.New(fmt.Sprintf("Failed to retrieve repository detail -> %v", res.StatusCode))
 	}
 
 	var repository Repository
@@ -105,7 +116,14 @@ func (s Service) GetRepository(ctx context.Context, repoOwner, repoName string) 
 		return nil, err
 	}
 
-	var parsedRepo *model.Repository
+	parsedRepo := &model.Repository{
+		Owner:       repoOwner,
+		Name:        repoName,
+		LastFetched: time.Time{},
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	fmt.Println(parsedRepo)
 
 	return parsedRepo, nil
 }

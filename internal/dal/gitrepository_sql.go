@@ -55,6 +55,7 @@ func (r *GitRepoStorage) GetByURL(ctx context.Context, url string, columns ...st
 	} else {
 		query.Column(strings.Join(columns, ","))
 	}
+	query.Where("url = ?", url)
 
 	err := query.Scan(ctx)
 

@@ -2,7 +2,6 @@ package model
 
 import (
 	"encoding/json"
-	"heimdall/internal/services/messagequeue"
 	"log"
 	"time"
 )
@@ -10,24 +9,26 @@ import (
 // Repository represents a GitHub repository to be monitored by the system.
 type Repository struct {
 	// ID is a unique identifier for the repository within our system (e.g., "owner/name").
-	ID int `json:"id,omitempty"`
+	ID int `json:"id,omitempty" bun:"id,pk,autoincrement"`
 
 	// Owner is the GitHub username or organization name that owns the repository.
-	Owner string `json:"owner,omitempty"`
+	Owner string `json:"owner,omitempty" bun:"owner"`
 
 	// Name is the name of the GitHub repository.
-	Name string `json:"name,omitempty"`
+	Name string `json:"name,omitempty" bun:"name"`
+
+	URL string `json:"url,omitempty" bun:"url"`
 
 	// LastFetched stores the timestamp of the last successful commit fetch for this repository.
 	// This helps in fetching only new commits since the last poll.
-	LastFetched time.Time `json:"last_fetched"`
+	LastFetched time.Time `json:"last_fetched" bun:"last_fetched"`
 
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time `json:"created_at" bun:"created_at"`
 
-	UpdatedAt time.Time `json:"updated_at"`
+	UpdatedAt time.Time `json:"updated_at" bun:"updated_at"`
 }
 
-func (r Repository) PullCommitTask() messagequeue.Task {
+func (r Repository) PullCommitTask() CommitPullJob {
 	return CommitPullJob{
 		Id:          r.ID,
 		RepoOwner:   r.Owner,
@@ -38,7 +39,7 @@ func (r Repository) PullCommitTask() messagequeue.Task {
 
 type Repositories []Repository
 
-func (rs Repositories) ScheduleCommitPullTask() messagequeue.Task {
+func (rs Repositories) ScheduleCommitPullTask() CommitJobs {
 	pullJobs := make(CommitJobs, len(rs))
 
 	for i, r := range rs {

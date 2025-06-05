@@ -1,3 +1,3 @@
 package github
 
-const BaseUrl = ""
+const BaseUrl = "https://api.github.com"

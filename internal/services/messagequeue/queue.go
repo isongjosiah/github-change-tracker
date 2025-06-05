@@ -16,8 +16,28 @@ import (
 var RmqConn *rmq.Connection // RmqConn is the connection to the rabbitmq instance
 // Connect initiates a connection to the rabbitmq instance
 func Connect(config *config.Config) (err error) {
-	RmqConn, err = rmq.Dial(config.RMQUrl)
-	return err
+	const maxRetries = 5
+	const initialBackoff = 2 * time.Second
+
+	var attempt int
+	for {
+		RmqConn, err = rmq.Dial(config.RMQUrl)
+		if err == nil {
+			log.Println("Connected to RabbitMQ")
+			return nil
+		}
+
+		attempt++
+		if attempt >= maxRetries {
+			break
+		}
+
+		backoff := time.Duration(attempt) * initialBackoff
+		log.Printf("Failed to connect to RabbitMQ (attempt %d/%d): %v. Retrying in %s...\n", attempt, maxRetries, err, backoff)
+		time.Sleep(backoff)
+	}
+
+	return errors.New("failed to connect to RabbitMQ after multiple attempts: " + err.Error())
 }
 
 // PublishMessage publishes a message to a queue task
@@ -91,7 +111,7 @@ func (rc RMQConsumer) Consume() {
 }
 
 func Nack(deliver rmq.Delivery) {
-	if err := deliver.Nack(false, true); err != nil {
+	if err := deliver.Nack(false, false); err != nil {
 		log.Println("[Nack]: failed to nack delivery message")
 	}
 }

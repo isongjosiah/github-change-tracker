@@ -4,17 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"heimdall/internal/dal"
 	"heimdall/internal/dal/model"
 	"heimdall/internal/dal/repositories"
 	"heimdall/internal/services/github"
 	"heimdall/internal/services/messagequeue"
+	value "heimdall/internal/values"
 	"heimdall/pkg/function"
 	"log"
+	"log/slog"
 	"net/url"
 	"regexp"
+
+	"github.com/pkg/errors"
 
 	"github.com/lucsky/cuid"
 	"github.com/rabbitmq/amqp091-go"
@@ -26,14 +29,12 @@ type RepositoryLogic struct {
 	Repo          repositories.IGitRepository
 	Commit        repositories.IRepositoryCommit
 	GitHubService github.Service
-	Queue         messagequeue.TaskQueue
 }
 
-func NewRepositoryLogic(db *bun.DB, messageQueue messagequeue.TaskQueue, gitRepo repositories.IGitRepository) *RepositoryLogic {
+func NewRepositoryLogic(db *bun.DB, gitRepo repositories.IGitRepository) *RepositoryLogic {
 	return &RepositoryLogic{
-		DB:    db,
-		Repo:  gitRepo,
-		Queue: messageQueue,
+		DB:   db,
+		Repo: gitRepo,
 	}
 }
 
@@ -46,19 +47,50 @@ func isValidGithubRepoURL(url string) bool {
 	return true // matches[1] is owner, matches[2] is repo
 }
 
-func (r *RepositoryLogic) Create(ctx context.Context, repo model.NewRepository) error {
+// Create handles the process of adding a new repository.
+// It validates the input, constructs a GitHub URL if not provided,
+// checks for existing repositories, and publishes the repository details
+// to a message queue for further processing (e.g., pulling commits).
+//
+// Parameters:
+//
+//	ctx context.Context: The context for the operation.
+//	repo model.NewRepository: The details of the new repository to be added.
+//
+// Returns:
+//
+//	string: A status code indicating the outcome (e.g., value.Success, value.BadRequest, value.Error, value.NotAllowed).
+//	string: A user-friendly message describing the outcome.
+//	error: An error object if any unexpected issue occurs, providing more technical details.
+func (r *RepositoryLogic) Create(ctx context.Context, repo model.NewRepository) (string, string, error) {
+	if repo.URL == "" && repo.RepoName == "" && repo.RepoOwner == "" {
+		return value.BadRequest, "Repository URL or Owner and Name must be provided", errors.New("repository URL or owner and name must be provided")
+	}
+
+	if repo.URL != "" && !isValidGithubRepoURL(repo.URL) {
+		return value.BadRequest, "Invalid repository URL provided", errors.New("Invalid repository URL provided")
+	}
+
 	if repo.URL == "" {
-		return errors.New("repository URL must be provided")
-	}
-	if !isValidGithubRepoURL(repo.URL) {
-		return errors.New("invalid repository URL provided")
+		repo.URL = fmt.Sprintf("https://github.com/%s/%s", repo.RepoOwner, repo.RepoName)
 	}
 
-	if err := r.Queue.Publish(ctx, "git-repo", repo); err != nil {
-		return errors.New("failed to publish queue")
+	repository, err := r.Repo.GetByURL(ctx, repo.URL, "id")
+	if err != nil {
+		return value.Error, "Something went wrong. Please try again", errors.Wrap(err, "Failed to check for repository existence")
+	}
+	if repository.ID != 0 {
+		return value.NotAllowed, "Repository already added. Pull commits instead", errors.New("Repository already added. Pull commits instead")
 	}
 
-	return nil
+	err = (messagequeue.RMQProducer{
+		Queue: messagequeue.AddRepo,
+	}).PublishMessage(repo)
+	if err != nil {
+		return value.Error, "Something went wrong. Please try again", errors.Wrap(err, "Failed to push new repository details to queue")
+	}
+
+	return value.Success, "Repository detail and commits are being pulled", nil
 }
 
 // ListCommitsByRepositoryName retrieves all commits associated with a given repository name.
@@ -99,38 +131,43 @@ func (r *RepositoryLogic) ListCommitsByRepositoryName(ctx context.Context, query
 }
 
 func (r *RepositoryLogic) handleRepositoryAddition(ctx context.Context, delivery amqp091.Delivery) error {
-	fmt.Println("Adding repository")
-	// parse data
 	var repo model.NewRepository
 	err := json.Unmarshal(delivery.Body, &repo)
 	if err != nil {
-		return err
+		slog.Info(fmt.Sprintf("Failed to Unmarshal task -> %s", err.Error()))
+		return errors.Wrap(err, "Failed to parse task message for adding new repositories")
 	}
-	fmt.Println("repo ->", repo)
+	if repo.URL == "" {
+		repo.URL = fmt.Sprintf("https://github.com/%s/%s", repo.RepoOwner, repo.RepoName)
+	}
+
+	repository, err := r.Repo.GetByURL(ctx, repo.URL, "id")
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return errors.Wrap(err, "Failed to check if repository exist")
+	}
+	if repository.ID != 0 { // repository already exist
+		return nil
+	}
 
 	err = r.DB.RunInTx(ctx, &sql.TxOptions{}, func(ctx context.Context, tx bun.Tx) error {
 		ctx = dal.WithTx(ctx, tx)
 
 		gitRepo, err := r.GitHubService.GetRepository(ctx, repo.RepoOwner, repo.RepoName)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed to retrieve detail for gitHub repository "+repo.URL)
 		}
-		fmt.Println("fetched repository")
 
 		repo, err := r.Repo.Add(ctx, *gitRepo)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed to add repository to DB")
 		}
-		fmt.Println("added repository")
 
-		if err := r.Queue.Publish(ctx, messagequeue.PullCommit, repo.PullCommitTask()); err != nil {
-			return err
-		}
-		fmt.Println("publish repository commit task")
+		err = (messagequeue.RMQProducer{
+			Queue: messagequeue.PullCommit,
+		}).PublishMessage(repo)
 
-		return nil
+		return err
 	})
-	fmt.Println("error adding repository -> ", err)
 	return err
 }
 
@@ -148,8 +185,14 @@ func (r *RepositoryLogic) scheduleRepositoryPool() {
 		if repos == nil {
 			break
 		}
-
-		if err := r.Queue.Publish(ctx, "pull-commit", model.Repositories(repos).ScheduleCommitPullTask()); err != nil {
+		payload, err := model.Repositories(repos).ScheduleCommitPullTask().Payload()
+		if err != nil {
+			continue
+		}
+		err = (messagequeue.RMQProducer{
+			Queue: messagequeue.PullCommit,
+		}).PublishMessage(payload)
+		if err != nil {
 			continue
 		}
 
@@ -161,7 +204,7 @@ func (r *RepositoryLogic) scheduleRepositoryPool() {
 // It fetches commits from GitHub, transforms them, and stores them in the database.
 // It also updates the repository's last fetched timestamp.
 func (r *RepositoryLogic) handleCommitPull(ctx context.Context, delivery amqp091.Delivery) error {
-	// parse data
+	fmt.Println("handling commits")
 	var repo model.CommitPullJob
 	err := json.Unmarshal(delivery.Body, &repo)
 	if err != nil {
