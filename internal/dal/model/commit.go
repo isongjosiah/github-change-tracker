@@ -10,7 +10,7 @@ type Commit struct {
 
 	// RepoId is the unique identifier of the repository this commit belongs to.
 	// This helps in linking commits back to their source repository within the system.
-	RepoId string `json:"repo_id,omitempty"`
+	RepoId int `json:"repo_id,omitempty"`
 
 	// Message is the commit message provided by the author.
 	Message string `json:"message,omitempty"`

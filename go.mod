@@ -8,8 +8,12 @@ require (
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-chi/cors v1.2.1
 	github.com/joho/godotenv v1.5.1
+	github.com/lucsky/cuid v1.2.1
 	github.com/pkg/errors v0.9.1
+	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/riandyrn/otelchi v0.12.1
+	github.com/robfig/cron/v3 v3.0.1
+	github.com/sony/gobreaker v1.0.0
 	github.com/uptrace/bun v1.2.11
 	github.com/uptrace/bun/dialect/pgdialect v1.2.11
 	github.com/uptrace/bun/driver/pgdriver v1.2.11
@@ -22,6 +26,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.36.0
 	go.opentelemetry.io/otel/trace v1.36.0
 	go.uber.org/zap v1.27.0
+	golang.org/x/time v0.11.0
 )
 
 require (

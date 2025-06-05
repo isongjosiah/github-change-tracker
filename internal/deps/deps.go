@@ -3,6 +3,8 @@ package dep
 import (
 	"heimdall/internal/config"
 	"heimdall/internal/dal"
+	"heimdall/internal/services/messagequeue"
+	"log"
 	"sync"
 )
 
@@ -15,7 +17,8 @@ var (
 // that the application relies on (e.g., database connections, message queues,
 // HTTP clients, etc.).
 type Dependencies struct {
-	DAL dal.DAL
+	DAL   dal.DAL
+	Queue messagequeue.TaskQueue
 }
 
 // New initializes and returns a singleton instance of the application's dependencies.
@@ -31,8 +34,13 @@ type Dependencies struct {
 // Returns a pointer to the initialized Dependencies instance.
 func New(cfg *config.Config) *Dependencies {
 	once.Do(func() {
+		queue, err := messagequeue.NewRabbitMQTaskQueue(cfg.RMQUrl, nil)
+		if err != nil {
+			log.Fatalf("failed to setup task queue -> ", err.Error())
+		}
 		dep = &Dependencies{
-			DAL: *dal.NewDAL(cfg),
+			DAL:   *dal.NewDAL(cfg),
+			Queue: queue,
 		}
 	})
 

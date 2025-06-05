@@ -4,6 +4,7 @@ import (
 	"heimdall/internal/api/rest"
 	"heimdall/internal/config"
 	deps "heimdall/internal/deps"
+	"heimdall/internal/logic"
 	"log"
 	"os"
 	"os/signal"
@@ -25,6 +26,9 @@ func main() {
 	if err != nil {
 		log.Fatal("failed to setup api -> ", err)
 	}
+
+	logic.InitWorkers(restApi.Logic, appConfig)
+	logic.InitCron(restApi.Logic)
 
 	go func() {
 		log.Fatal(restApi.Serve())
