@@ -9,9 +9,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Example environment variables for your server
       - DATABASE_URL=postgresql://user:password@postgres:5432/mydatabase?sslmode=disable
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     depends_on:
       - postgres
@@ -20,7 +19,7 @@ services:
     networks:
       - my-network
     volumes:
-      - ./your-server/logs:/app/logs # Example: Mount a volume for server logs
+      - ./heimdall/logs:/app/logs # Example: Mount a volume for server logs
 
   # PostgreSQL Database
   postgres:

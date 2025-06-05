@@ -3,8 +3,10 @@ package dal
 import (
 	"context"
 	"errors"
+	"fmt"
 	"heimdall/internal/dal/model"
 	"heimdall/internal/dal/repositories"
+	"log"
 	"strings"
 
 	"github.com/uptrace/bun"
@@ -82,6 +84,48 @@ func (r *GitRepoStorage) List(ctx context.Context, lastId, perPage int, columns 
 	err := query.Scan(ctx)
 
 	return repos, err
+}
+
+// UpdateFields updates specific fields of an existing repository in the database using a map.
+// It identifies the record by its ID and updates only the fields provided in the `updates` map.
+// The keys of the map should correspond to the database column names (or struct field names if using default bun mapping).
+func (r *GitRepoStorage) Update(ctx context.Context, repoID int, updates map[string]any) error {
+	if repoID == 0 {
+		return errors.New("repository ID must be provided for update")
+	}
+	if len(updates) == 0 {
+		return errors.New("no fields provided for update")
+	}
+
+	db := GetDB(ctx, r.DB)
+
+	updateQuery := db.NewUpdate().
+		Model((*model.Repository)(nil)).
+		Where("id = ?", repoID)
+
+	// Add fields from the map to the update query
+	for col, val := range updates {
+		updateQuery.Set(fmt.Sprintf("%s = ?", col), val)
+	}
+
+	result, err := updateQuery.Exec(ctx)
+	if err != nil {
+		log.Printf("Error updating repository %d with fields %v: %v", repoID, updates, err)
+		return fmt.Errorf("failed to update repository fields: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Printf("Error getting rows affected for repository %d update: %v", repoID, err)
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		log.Printf("No rows updated for repository ID %d. Repository might not exist.", repoID)
+		return errors.New("repository not found or no fields changed")
+	}
+
+	return nil
 }
 
 // Commits retrieves all commits associated with a given repository name.
