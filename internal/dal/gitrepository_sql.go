@@ -50,7 +50,7 @@ func (r *GitRepoStorage) GetByURL(ctx context.Context, url string, forUpdate boo
 	query := GetDB(ctx, r.DB).
 		NewSelect().
 		Model(&repo)
-	if len(columns) >= 0 && columns[0] != "" {
+	if len(columns) > 0 && columns[0] != "" {
 		query.Column(columns[0])
 	} else {
 		query.Column("*")

@@ -80,52 +80,54 @@ for monitoring and metrics
   - **Transactional consistency** during updates.
   - **Scalability** through decoupled scheduling and commit ingestion.
 
-3. Retrieve Repository Commits
-   Retrieve commits for a repository with **cursor-based pagination**
+3. Queries
+   You can explore and test the API using the Postman collection here:  
+   [🔗 View Postman Collection](https://elements.getpostman.com/redirect?entityId=29631323-333ab8be-5550-4eda-83dc-342eef9c567e&entityType=collection)
 
-#### Endpoint
+4. Improvements
 
-4. **Retry Mechanism:**
+### 1. 🔁 Robust Retry Mechanism
 
-- Scheduler periodically enqueues pull tasks for all repositories.
-- Retries failed fetches up to a configured number of attempts.
-- Logs errors with context (start index, count) for manual inspection.
+- Enhance the scheduler to **periodically re-enqueue pull tasks** for repositories that failed in previous attempts.
+- Implement a **bounded retry strategy** (e.g., exponential backoff) with a configurable maximum number of retries per repository.
+- Improve observability by **logging failures with context**, such as batch start index and size, to support manual debugging and recovery.
 
-5. **Rate Limiting & Coordination:**
-   - Workers monitor GitHub API rate limit headers.
-   - On hitting limits, workers communicate via channels to pause processing.
-   - Processing resumes when rate limits reset.
+### 2. 🚦 Rate Limiting & Worker Coordination
+
+- Add support for monitoring GitHub’s **API rate limit headers** (e.g., `X-RateLimit-Remaining`, `X-RateLimit-Reset`).
+- On approaching rate limits, enable **inter-worker communication** via channels or a shared cache (e.g., Redis) to:
+  - Temporarily **pause job processing**.
+  - **Resume automatically** when the rate window resets.
+- This protects the system from hitting hard limits and ensures graceful degradation.
+
+### 3. 📈 Monitoring & Observability Stack
+
+To ensure operational insight and rapid troubleshooting:
+
+- **OpenTelemetry**: Add tracing spans and metrics to all major operations (task scheduling, queue processing, DB interactions) for full observability.
+- **Prometheus**: Export key metrics such as:
+  - Queue sizes and task throughput.
+  - API response times and error rates.
+  - DB connection pool usage.
+  - GitHub API usage and remaining quota.
+- **Grafana Dashboards**:
+  - Build visual dashboards to monitor system health and performance.
+  - Set up **alerts** for key thresholds (e.g., high task failure rate, API quota exhaustion, DB latency spikes).
+
+These improvements would increase the platform’s **resilience**, **scalability**, and **developer visibility**, making it production-grade and easier to operate.
 
 ---
-
-## Why RabbitMQ?
-
-- Easier to set up and manage for task queues compared to Kafka.
-- Provides reliable delivery and acknowledgment semantics suited for asynchronous job processing.
-- Supports retries and message durability.
-- Lightweight and well-supported in Go ecosystem.
-
----
-
-## Monitoring
-
-To ensure system reliability and observability, the following monitoring stack is integrated:
-
-- **OpenTelemetry:** Instrumentation for tracing and metrics collection across services and workers, providing distributed tracing for task flow and API interactions.
-- **Prometheus:** Scrapes metrics exposed by the services, including API response times, worker queue lengths, DB connection pool stats, and GitHub API rate limit usage.
-- **Grafana:** Visualization dashboard for Prometheus metrics, enabling real-time monitoring, alerting, and historical analysis.
 
 ### Checklist
 
-[] create Docker compose files for system components.
-[] setup server.
-[] setup OpenTelemetry Collector and services
-[] define ERDs.
-[] implement endpoint to save repository.
-[] implement endpoints to retrieve information
-[] implement workers for adding repository
-[] implement workers for pulling commit information
-[] write tests
+[x] create Docker compose files for system components.
+[x] setup server.
+[x] setup OpenTelemetry Collector and services
+[x] implement endpoint to save repository.
+[x] implement endpoints to retrieve information
+[x] implement workers for adding repository
+[x] implement workers for pulling commit information
+[x] write tests
 
 ---
 

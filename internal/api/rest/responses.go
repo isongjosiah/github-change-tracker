@@ -2,6 +2,7 @@ package rest
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -39,6 +40,7 @@ func RespondWithError(err error, message, status string, statusCode int) *Server
 
 	if err != nil {
 		// wrappedErr = errors.Wrap(err, message)
+		fmt.Println("error ->", err.Error())
 		wrappedErr = errors.New(err.Error())
 	} else {
 		wrappedErr = errors.New(message)

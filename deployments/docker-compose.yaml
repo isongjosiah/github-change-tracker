@@ -12,7 +12,7 @@ services:
       - DATABASE_URL=postgresql://user:password@postgres:5432/mydatabase?sslmode=disable
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - GITHUB_TOKEN=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
+      #- GITHUB_TOKEN=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
     depends_on:
       - postgres
       - rabbitmq
@@ -32,7 +32,8 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     volumes:
-      - postgres_data:/var/lib/postgresql/data # Persistent data volume
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
     networks:
       - my-network
     restart: unless-stopped

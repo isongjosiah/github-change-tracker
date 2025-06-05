@@ -17,7 +17,7 @@ func (a *API) RepositoryRoutes() chi.Router {
 
 	router.Method(http.MethodPost, "/", Handler(a.AddRepositoryToMonitorH))
 	router.Method(http.MethodGet, "/commits", Handler(a.GetRepositoryCommitsH))
-	router.Method(http.MethodGet, "/reset-collection-date", Handler(a.ResetRepositoryCommits))
+	router.Method(http.MethodPost, "/reset-collection-date", Handler(a.ResetRepositoryCommits))
 
 	return router
 }
