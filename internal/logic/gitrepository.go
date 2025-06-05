@@ -16,6 +16,8 @@ import (
 	"log/slog"
 	"net/url"
 	"regexp"
+	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -174,13 +176,19 @@ func (r *RepositoryLogic) handleRepositoryAddition(ctx context.Context, delivery
 	return err
 }
 
+var mu sync.Mutex
+
 func (r *RepositoryLogic) scheduleRepositoryPool() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	fmt.Println("running repository pooling job")
 	lastId := 0
 	perPage := 10
 	ctx := context.Background()
 
 	for {
-		repos, err := r.Repo.List(ctx, lastId, perPage, "*")
+		repos, err := r.Repo.List(ctx, lastId, perPage)
 		if err != nil {
 			// TODO: log error with lastId and perPage detail
 			continue
@@ -188,18 +196,17 @@ func (r *RepositoryLogic) scheduleRepositoryPool() {
 		if repos == nil {
 			break
 		}
-		payload, err := model.Repositories(repos).ScheduleCommitPullTask().Payload()
-		if err != nil {
-			continue
-		}
-		err = (messagequeue.RMQProducer{
-			Queue: messagequeue.PullCommit,
-		}).PublishMessage(payload)
-		if err != nil {
-			continue
+		fmt.Println("repos is ->", repos)
+		for _, repo := range repos {
+			err = (messagequeue.RMQProducer{
+				Queue: messagequeue.PullCommit,
+			}).PublishMessage(repo.PullCommitTask())
+			if err != nil {
+				continue
+			}
+			lastId = repo.ID
 		}
 
-		lastId = repos[len(repos)-1].ID
 	}
 }
 
@@ -219,47 +226,50 @@ func (r *RepositoryLogic) handleCommitPull(ctx context.Context, delivery amqp091
 		fmt.Println("failed to retrieve commits ->", err.Error())
 		return err
 	}
-
-	newCommit := make([]model.Commit, 0)
-	for _, commit := range commits {
-		newCommit = append(newCommit, model.Commit{
-			Id:      cuid.New(),
-			RepoId:  repo.Id,
-			Message: commit.Commit.Message,
-			Author:  commit.Commit.Author.Name,
-			Date:    commit.Commit.Committer.Date,
-			URL:     commit.Commit.URL,
-		})
-	}
-
-	err = r.DB.RunInTx(ctx, &sql.TxOptions{}, func(ctx context.Context, tx bun.Tx) error {
-		ctx = dal.WithTx(ctx, tx)
-		if err := r.Commit.Add(ctx, newCommit); err != nil {
-			return err
-		}
-		fmt.Println("persisted commits")
-
-		err := r.Repo.Update(ctx, repo.Id, map[string]any{
-			"last_fetched": newCommit[len(newCommit)-1].Date,
-		})
-		return err
-	})
+	parsedLink, err := github.ParseLinkHeader(link)
 	if err != nil {
-		fmt.Println("failed to persist data -> ", err)
+		return err
+	}
+	fmt.Println("commits -> ", commits)
+	fmt.Println("parsedLink -> ", parsedLink)
+
+	// if there is no last page. There is only one page.
+	// handle that
+	if _, ok := parsedLink["last"]; !ok {
+		newCommit := make([]model.Commit, 0)
+		for _, commit := range commits {
+			newCommit = append(newCommit, model.Commit{
+				Id:      cuid.New(),
+				RepoId:  repo.Id,
+				Message: commit.Commit.Message,
+				Author:  commit.Commit.Author.Name,
+				Date:    commit.Commit.Committer.Date,
+				URL:     commit.Commit.URL,
+			})
+		}
+
+		err := r.DB.RunInTx(ctx, &sql.TxOptions{}, func(ctx context.Context, tx bun.Tx) error {
+			ctx = dal.WithTx(ctx, tx)
+			if err := r.Commit.Add(ctx, newCommit); err != nil {
+				return err
+			}
+			err := r.Repo.Update(ctx, repo.Id, map[string]any{
+				"last_fetched": newCommit[0].Date,
+			})
+			return err
+		})
 		return err
 	}
 
-	for link != "" {
-		parsedLink, err := github.ParseLinkHeader(link)
-		if err != nil {
-			return err
-		}
+	link = parsedLink["last"].URL
 
-		commits, newLink, err := r.GitHubService.ListCommit(repo.RepoOwner, repo.RepoName, repo.LastFetched, parsedLink["next"].URL)
+	// start from the last page because github is sorted in descending order
+	for link != "" {
+
+		commits, newLink, err := r.GitHubService.ListCommit(repo.RepoOwner, repo.RepoName, time.Time{}, link)
 		if err != nil {
 			return err
 		}
-		link = newLink
 
 		newCommit := make([]model.Commit, 0)
 		for _, commit := range commits {
@@ -283,6 +293,17 @@ func (r *RepositoryLogic) handleCommitPull(ctx context.Context, delivery amqp091
 			})
 			return err
 		})
+
+		parsedLink, err := github.ParseLinkHeader(newLink)
+		if err != nil {
+			return err
+		}
+		fmt.Println(parsedLink)
+		if _, ok := parsedLink["prev"]; !ok {
+			break
+		}
+
+		link = parsedLink["prev"].URL
 
 	}
 
