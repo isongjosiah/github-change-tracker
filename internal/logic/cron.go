@@ -8,7 +8,7 @@ import (
 
 func InitCron(l *Logic) {
 	client := cron.New()
-	if _, err := client.AddFunc("@every 1h", l.Repository.scheduleRepositoryPool); err != nil {
+	if _, err := client.AddFunc("@every 1h", l.Repository.ScheduleRepositoryPool); err != nil {
 		log.Fatal("Unable to start repository monitoring ", err)
 	}
 	client.Start()

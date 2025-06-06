@@ -31,14 +31,16 @@ type RepositoryLogic struct {
 	Repo          repositories.IGitRepository
 	Commit        repositories.IRepositoryCommit
 	GitHubService github.IRepositoryService
+	Publisher     messagequeue.Producer
 }
 
-func NewRepositoryLogic(db *bun.DB, gitRepo repositories.IGitRepository, commitRepo repositories.IRepositoryCommit, githubService github.IRepositoryService) *RepositoryLogic {
+func NewRepositoryLogic(db *bun.DB, gitRepo repositories.IGitRepository, commitRepo repositories.IRepositoryCommit, githubService github.IRepositoryService, publisher messagequeue.Producer) *RepositoryLogic {
 	return &RepositoryLogic{
 		DB:            db,
 		Repo:          gitRepo,
 		Commit:        commitRepo,
 		GitHubService: githubService,
+		Publisher:     publisher,
 	}
 }
 
@@ -87,9 +89,7 @@ func (r *RepositoryLogic) Create(ctx context.Context, repo model.NewRepository) 
 		return value.NotAllowed, "Repository already added. Pull commits instead", errors.New("Repository already added. Pull commits instead")
 	}
 
-	err = (messagequeue.RMQProducer{
-		Queue: messagequeue.AddRepo,
-	}).PublishMessage(repo)
+	err = r.Publisher.PublishMessage(messagequeue.AddRepo, "", repo)
 	if err != nil {
 		return value.Error, "Something went wrong. Please try again", errors.Wrap(err, "Failed to push new repository details to queue")
 	}
@@ -141,7 +141,7 @@ func (r *RepositoryLogic) ListCommitsByRepositoryName(ctx context.Context, query
 	return commits, value.Success, value.Success, nil
 }
 
-func (r *RepositoryLogic) handleRepositoryAddition(ctx context.Context, delivery amqp091.Delivery) error {
+func (r *RepositoryLogic) HandleRepositoryAddition(ctx context.Context, delivery amqp091.Delivery) error {
 	var repo model.NewRepository
 	err := json.Unmarshal(delivery.Body, &repo)
 	if err != nil {
@@ -174,9 +174,7 @@ func (r *RepositoryLogic) handleRepositoryAddition(ctx context.Context, delivery
 		}
 		fmt.Println(repo)
 
-		err = (messagequeue.RMQProducer{
-			Queue: messagequeue.PullCommit,
-		}).PublishMessage(repo.PullCommitTask())
+		err = r.Publisher.PublishMessage(messagequeue.PullCommit, "", repo.PullCommitTask())
 
 		return err
 	})
@@ -185,7 +183,7 @@ func (r *RepositoryLogic) handleRepositoryAddition(ctx context.Context, delivery
 
 var mu sync.Mutex
 
-func (r *RepositoryLogic) scheduleRepositoryPool() {
+func (r *RepositoryLogic) ScheduleRepositoryPool() {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -205,9 +203,7 @@ func (r *RepositoryLogic) scheduleRepositoryPool() {
 		}
 		fmt.Println("repos is ->", repos)
 		for _, repo := range repos {
-			err = (messagequeue.RMQProducer{
-				Queue: messagequeue.PullCommit,
-			}).PublishMessage(repo.PullCommitTask())
+			err := r.Publisher.PublishMessage(messagequeue.PullCommit, "", repo.PullCommitTask())
 			if err != nil {
 				continue
 			}
@@ -220,7 +216,7 @@ func (r *RepositoryLogic) scheduleRepositoryPool() {
 // handleCommitPull processes a commit pull job from the message queue.
 // It fetches commits from GitHub, transforms them, and stores them in the database.
 // It also updates the repository's last fetched timestamp.
-func (r *RepositoryLogic) handleCommitPull(ctx context.Context, delivery amqp091.Delivery) error {
+func (r *RepositoryLogic) HandleCommitPull(ctx context.Context, delivery amqp091.Delivery) error {
 	var repo model.CommitPullJob
 	err := json.Unmarshal(delivery.Body, &repo)
 	if err != nil {

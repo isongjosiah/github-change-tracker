@@ -42,7 +42,7 @@ func Connect(config *config.Config) (err error) {
 }
 
 // PublishMessage publishes a message to a queue task
-func (rp RMQProducer) PublishMessage(message any) error {
+func (rp RMQProducer) PublishMessage(queueName, dlq string, message any) error {
 	jsonStr, err := json.Marshal(message)
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func (rp RMQProducer) PublishMessage(message any) error {
 		return err
 	}
 
-	queue, err := ch.QueueDeclare(rp.Queue, true, false, false, false, nil)
+	queue, err := ch.QueueDeclare(queueName, true, false, false, false, nil)
 	if err != nil {
 		return err
 	}

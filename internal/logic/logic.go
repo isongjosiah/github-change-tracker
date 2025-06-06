@@ -19,7 +19,7 @@ func New(dep *deps.Dependencies) *Logic {
 	once.Do(func() {
 		logic = &Logic{
 			Commit:     NewCommitLogic(dep.DAL.Commit),
-			Repository: NewRepositoryLogic(dep.DAL.SqlDB, dep.DAL.GitRepo, dep.DAL.Commit, dep.GitHubService),
+			Repository: NewRepositoryLogic(dep.DAL.SqlDB, dep.DAL.GitRepo, dep.DAL.Commit, dep.GitHubService, dep.Producer),
 		}
 	})
 

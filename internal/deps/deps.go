@@ -20,6 +20,7 @@ var (
 type Dependencies struct {
 	DAL           dal.DAL
 	GitHubService github.IRepositoryService
+	Producer      messagequeue.Producer
 }
 
 // New initializes and returns a singleton instance of the application's dependencies.
@@ -42,6 +43,7 @@ func New(cfg *config.Config) *Dependencies {
 		dep = &Dependencies{
 			DAL:           *dal.NewDAL(cfg),
 			GitHubService: *github.NewService(cfg),
+			Producer:      messagequeue.RMQProducer{},
 		}
 	})
 

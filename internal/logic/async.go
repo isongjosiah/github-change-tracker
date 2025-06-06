@@ -16,8 +16,8 @@ func InitWorkers(l *Logic, config *config.Config) {
 		return
 	}
 
-	processCommitPull(l.Repository.handleCommitPull)
-	processRepositoryAddition(l.Repository.handleRepositoryAddition)
+	processCommitPull(l.Repository.HandleCommitPull)
+	processRepositoryAddition(l.Repository.HandleRepositoryAddition)
 }
 
 type workerHandler func(ctx context.Context, message amqp091.Delivery) error
