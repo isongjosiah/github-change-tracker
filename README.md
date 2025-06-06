@@ -136,5 +136,6 @@ These improvements would increase the platform’s **resilience**, **scalability
 Use Docker Compose to bring up the environment:
 
 ```bash
+cd deployments
 docker-compose up
 ```
