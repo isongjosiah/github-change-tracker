@@ -19,14 +19,11 @@ for monitoring and metrics
   due to setup complexity.
 - **Repository Polling:** Periodically polls commit history of repositories
   added to the system every 1h.
-- **Rate Limiting:** Respects GitHub API rate limits by pausing and resuming
-  workers via communication channels.
 - **Robust Worker Model:** Workers handle retries, idempotency, pagination, and
   error handling with acknowledgement only after complete commit fetches.
 - **Task Queue:** RabbitMQ used for task processing, chosen over Kafka due to
   simpler setup and suitability for task queues.
-- **Database:** PostgreSQL with read replicas for scaling reads and handling
-  writes with a connection pool.
+- **Database:** PostgreSQL.
 - **Docker Compose:** Complete environment setup for DB, RabbitMQ, and services
   for easy prototyping and local development.
 
