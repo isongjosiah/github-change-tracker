@@ -23,21 +23,23 @@ type FakeIGitRepository struct {
 		result1 model.Repository
 		result2 error
 	}
-	CommitsStub        func(context.Context, string, int, int) ([]model.Commit, error)
+	CommitsStub        func(context.Context, string, string, int) ([]model.Commit, model.PaginationData, error)
 	commitsMutex       sync.RWMutex
 	commitsArgsForCall []struct {
 		arg1 context.Context
 		arg2 string
-		arg3 int
+		arg3 string
 		arg4 int
 	}
 	commitsReturns struct {
 		result1 []model.Commit
-		result2 error
+		result2 model.PaginationData
+		result3 error
 	}
 	commitsReturnsOnCall map[int]struct {
 		result1 []model.Commit
-		result2 error
+		result2 model.PaginationData
+		result3 error
 	}
 	GetByURLStub        func(context.Context, string, bool, ...string) (model.Repository, error)
 	getByURLMutex       sync.RWMutex
@@ -153,13 +155,13 @@ func (fake *FakeIGitRepository) AddReturnsOnCall(i int, result1 model.Repository
 	}{result1, result2}
 }
 
-func (fake *FakeIGitRepository) Commits(arg1 context.Context, arg2 string, arg3 int, arg4 int) ([]model.Commit, error) {
+func (fake *FakeIGitRepository) Commits(arg1 context.Context, arg2 string, arg3 string, arg4 int) ([]model.Commit, model.PaginationData, error) {
 	fake.commitsMutex.Lock()
 	ret, specificReturn := fake.commitsReturnsOnCall[len(fake.commitsArgsForCall)]
 	fake.commitsArgsForCall = append(fake.commitsArgsForCall, struct {
 		arg1 context.Context
 		arg2 string
-		arg3 int
+		arg3 string
 		arg4 int
 	}{arg1, arg2, arg3, arg4})
 	stub := fake.CommitsStub
@@ -170,9 +172,9 @@ func (fake *FakeIGitRepository) Commits(arg1 context.Context, arg2 string, arg3 
 		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
-		return ret.result1, ret.result2
+		return ret.result1, ret.result2, ret.result3
 	}
-	return fakeReturns.result1, fakeReturns.result2
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
 }
 
 func (fake *FakeIGitRepository) CommitsCallCount() int {
@@ -181,43 +183,46 @@ func (fake *FakeIGitRepository) CommitsCallCount() int {
 	return len(fake.commitsArgsForCall)
 }
 
-func (fake *FakeIGitRepository) CommitsCalls(stub func(context.Context, string, int, int) ([]model.Commit, error)) {
+func (fake *FakeIGitRepository) CommitsCalls(stub func(context.Context, string, string, int) ([]model.Commit, model.PaginationData, error)) {
 	fake.commitsMutex.Lock()
 	defer fake.commitsMutex.Unlock()
 	fake.CommitsStub = stub
 }
 
-func (fake *FakeIGitRepository) CommitsArgsForCall(i int) (context.Context, string, int, int) {
+func (fake *FakeIGitRepository) CommitsArgsForCall(i int) (context.Context, string, string, int) {
 	fake.commitsMutex.RLock()
 	defer fake.commitsMutex.RUnlock()
 	argsForCall := fake.commitsArgsForCall[i]
 	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
-func (fake *FakeIGitRepository) CommitsReturns(result1 []model.Commit, result2 error) {
+func (fake *FakeIGitRepository) CommitsReturns(result1 []model.Commit, result2 model.PaginationData, result3 error) {
 	fake.commitsMutex.Lock()
 	defer fake.commitsMutex.Unlock()
 	fake.CommitsStub = nil
 	fake.commitsReturns = struct {
 		result1 []model.Commit
-		result2 error
-	}{result1, result2}
+		result2 model.PaginationData
+		result3 error
+	}{result1, result2, result3}
 }
 
-func (fake *FakeIGitRepository) CommitsReturnsOnCall(i int, result1 []model.Commit, result2 error) {
+func (fake *FakeIGitRepository) CommitsReturnsOnCall(i int, result1 []model.Commit, result2 model.PaginationData, result3 error) {
 	fake.commitsMutex.Lock()
 	defer fake.commitsMutex.Unlock()
 	fake.CommitsStub = nil
 	if fake.commitsReturnsOnCall == nil {
 		fake.commitsReturnsOnCall = make(map[int]struct {
 			result1 []model.Commit
-			result2 error
+			result2 model.PaginationData
+			result3 error
 		})
 	}
 	fake.commitsReturnsOnCall[i] = struct {
 		result1 []model.Commit
-		result2 error
-	}{result1, result2}
+		result2 model.PaginationData
+		result3 error
+	}{result1, result2, result3}
 }
 
 func (fake *FakeIGitRepository) GetByURL(arg1 context.Context, arg2 string, arg3 bool, arg4 ...string) (model.Repository, error) {

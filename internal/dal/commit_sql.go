@@ -3,12 +3,13 @@ package dal
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"heimdall/internal/dal/model"
 	"heimdall/internal/dal/repositories"
 	"strconv"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/uptrace/bun"
 )
@@ -45,26 +46,47 @@ func (r *RepositoryCommitStorage) Add(ctx context.Context, commits []model.Commi
 
 // ListByRepoID retrieves a paginated list of commits for a specific repository ID.
 // It uses `lastId` for cursor-based pagination and `perPage` to limit the number of results.
-func (r *RepositoryCommitStorage) ListByRepoID(ctx context.Context, repoId, lastId, perPage int) ([]model.Commit, error) {
+func (r *RepositoryCommitStorage) ListByRepoID(ctx context.Context, repoId int, lastId string, perPage int) ([]model.Commit, model.PaginationData, error) {
 	if perPage < 1 {
 		perPage = 10
 	}
 
 	var commits []model.Commit
-	query := GetDB(ctx, r.DB).
+	baseQuery := GetDB(ctx, r.DB).
 		NewSelect().
 		Model(&commits).
-		Where("repo_id = ?", repoId).
-		Order("id ASC").
-		Limit(perPage)
-
-	if lastId > 0 {
-		query.Where("id > ?", lastId)
+		Where("repo_id = ?", repoId)
+	count, err := baseQuery.Count(ctx)
+	if err != nil {
+		return nil, model.PaginationData{}, errors.Wrap(err, "Unable to count commits for repository")
 	}
 
-	err := query.Scan(ctx)
+	baseQuery.Order("id ASC").
+		Limit(perPage + 1)
+	if lastId != "" {
+		baseQuery.Where("id > ?", lastId)
+	}
 
-	return commits, err
+	err = baseQuery.Scan(ctx)
+	if err != nil {
+		return nil, model.PaginationData{}, errors.Wrap(err, "Unable to retrieve paginated commit for repository")
+	}
+	hasNext := false
+	nextCursor := ""
+	if len(commits) > perPage {
+		hasNext = true
+		commits = commits[:perPage]
+		nextCursor = commits[len(commits)-1].Id
+	}
+
+	paginationData := model.PaginationData{
+		PerPage:    perPage,
+		Total:      count,
+		HasNext:    hasNext,
+		NextCursor: nextCursor,
+	}
+
+	return commits, paginationData, err
 }
 
 // TopAuthors retrieves a list of top authors based on their commit count,

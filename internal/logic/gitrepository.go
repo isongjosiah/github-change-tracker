@@ -111,7 +111,7 @@ func (r *RepositoryLogic) Create(ctx context.Context, repo model.NewRepository) 
 //
 //	A slice of `model.Commit` structs, representing the commits found for the repository.
 //	An error if the repository name is invalid or if the data retrieval fails.
-func (r *RepositoryLogic) ListCommitsByRepositoryName(ctx context.Context, query url.Values) ([]model.Commit, string, string, error) {
+func (r *RepositoryLogic) ListCommitsByRepositoryName(ctx context.Context, query url.Values) (map[string]any, string, string, error) {
 	// 1. Validate repository name presence
 	repoName := query.Get("repo-name")
 	repoOwner := query.Get("repo-owner")
@@ -119,7 +119,7 @@ func (r *RepositoryLogic) ListCommitsByRepositoryName(ctx context.Context, query
 		return nil, value.BadRequest, "Repository name and owner must be provided", errors.New("repository name and owner must be provided")
 	}
 
-	lastCommitId := function.StringToInt(query.Get("last-commit-id"))
+	lastCommitId := query.Get("last-commit-id")
 	perPage := function.StringToInt(query.Get("limit"))
 
 	repo, err := r.Repo.GetByURL(ctx, fmt.Sprintf("https://github.com/%s/%s", repoOwner, repoName), false)
@@ -131,14 +131,19 @@ func (r *RepositoryLogic) ListCommitsByRepositoryName(ctx context.Context, query
 		return nil, value.Error, "Something went wrong. Please try again", errors.Wrap(err, "unable to retrieve repository")
 	}
 
-	commits, err := r.Repo.Commits(ctx, repo.Name, lastCommitId, perPage)
+	commits, pagination, err := r.Repo.Commits(ctx, repo.Name, lastCommitId, perPage)
 	if err != nil {
 		log.Printf("ERROR: RepositoryLogic.ListCommitsByRepositoryName - failed to retrieve commits for repo '%s': %v", repoName, err)
 		// Wrap the error to add context from the business logic layer.
 		return nil, value.Error, "Something went wrong. Please try again", errors.Wrap(err, fmt.Sprintf("could not retrieve commits for repository '%s'", repoName))
 	}
 
-	return commits, value.Success, value.Success, nil
+	payload := map[string]any{
+		"commits":    commits,
+		"pagination": pagination,
+	}
+
+	return payload, value.Success, value.Success, nil
 }
 
 func (r *RepositoryLogic) HandleRepositoryAddition(ctx context.Context, delivery amqp091.Delivery) error {

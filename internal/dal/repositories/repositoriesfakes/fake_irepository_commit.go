@@ -22,21 +22,23 @@ type FakeIRepositoryCommit struct {
 	addReturnsOnCall map[int]struct {
 		result1 error
 	}
-	ListByRepoIDStub        func(context.Context, int, int, int) ([]model.Commit, error)
+	ListByRepoIDStub        func(context.Context, int, string, int) ([]model.Commit, model.PaginationData, error)
 	listByRepoIDMutex       sync.RWMutex
 	listByRepoIDArgsForCall []struct {
 		arg1 context.Context
 		arg2 int
-		arg3 int
+		arg3 string
 		arg4 int
 	}
 	listByRepoIDReturns struct {
 		result1 []model.Commit
-		result2 error
+		result2 model.PaginationData
+		result3 error
 	}
 	listByRepoIDReturnsOnCall map[int]struct {
 		result1 []model.Commit
-		result2 error
+		result2 model.PaginationData
+		result3 error
 	}
 	ResetCommitsFromStub        func(context.Context, int, time.Time) error
 	resetCommitsFromMutex       sync.RWMutex
@@ -136,13 +138,13 @@ func (fake *FakeIRepositoryCommit) AddReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeIRepositoryCommit) ListByRepoID(arg1 context.Context, arg2 int, arg3 int, arg4 int) ([]model.Commit, error) {
+func (fake *FakeIRepositoryCommit) ListByRepoID(arg1 context.Context, arg2 int, arg3 string, arg4 int) ([]model.Commit, model.PaginationData, error) {
 	fake.listByRepoIDMutex.Lock()
 	ret, specificReturn := fake.listByRepoIDReturnsOnCall[len(fake.listByRepoIDArgsForCall)]
 	fake.listByRepoIDArgsForCall = append(fake.listByRepoIDArgsForCall, struct {
 		arg1 context.Context
 		arg2 int
-		arg3 int
+		arg3 string
 		arg4 int
 	}{arg1, arg2, arg3, arg4})
 	stub := fake.ListByRepoIDStub
@@ -153,9 +155,9 @@ func (fake *FakeIRepositoryCommit) ListByRepoID(arg1 context.Context, arg2 int, 
 		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
-		return ret.result1, ret.result2
+		return ret.result1, ret.result2, ret.result3
 	}
-	return fakeReturns.result1, fakeReturns.result2
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
 }
 
 func (fake *FakeIRepositoryCommit) ListByRepoIDCallCount() int {
@@ -164,43 +166,46 @@ func (fake *FakeIRepositoryCommit) ListByRepoIDCallCount() int {
 	return len(fake.listByRepoIDArgsForCall)
 }
 
-func (fake *FakeIRepositoryCommit) ListByRepoIDCalls(stub func(context.Context, int, int, int) ([]model.Commit, error)) {
+func (fake *FakeIRepositoryCommit) ListByRepoIDCalls(stub func(context.Context, int, string, int) ([]model.Commit, model.PaginationData, error)) {
 	fake.listByRepoIDMutex.Lock()
 	defer fake.listByRepoIDMutex.Unlock()
 	fake.ListByRepoIDStub = stub
 }
 
-func (fake *FakeIRepositoryCommit) ListByRepoIDArgsForCall(i int) (context.Context, int, int, int) {
+func (fake *FakeIRepositoryCommit) ListByRepoIDArgsForCall(i int) (context.Context, int, string, int) {
 	fake.listByRepoIDMutex.RLock()
 	defer fake.listByRepoIDMutex.RUnlock()
 	argsForCall := fake.listByRepoIDArgsForCall[i]
 	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
-func (fake *FakeIRepositoryCommit) ListByRepoIDReturns(result1 []model.Commit, result2 error) {
+func (fake *FakeIRepositoryCommit) ListByRepoIDReturns(result1 []model.Commit, result2 model.PaginationData, result3 error) {
 	fake.listByRepoIDMutex.Lock()
 	defer fake.listByRepoIDMutex.Unlock()
 	fake.ListByRepoIDStub = nil
 	fake.listByRepoIDReturns = struct {
 		result1 []model.Commit
-		result2 error
-	}{result1, result2}
+		result2 model.PaginationData
+		result3 error
+	}{result1, result2, result3}
 }
 
-func (fake *FakeIRepositoryCommit) ListByRepoIDReturnsOnCall(i int, result1 []model.Commit, result2 error) {
+func (fake *FakeIRepositoryCommit) ListByRepoIDReturnsOnCall(i int, result1 []model.Commit, result2 model.PaginationData, result3 error) {
 	fake.listByRepoIDMutex.Lock()
 	defer fake.listByRepoIDMutex.Unlock()
 	fake.ListByRepoIDStub = nil
 	if fake.listByRepoIDReturnsOnCall == nil {
 		fake.listByRepoIDReturnsOnCall = make(map[int]struct {
 			result1 []model.Commit
-			result2 error
+			result2 model.PaginationData
+			result3 error
 		})
 	}
 	fake.listByRepoIDReturnsOnCall[i] = struct {
 		result1 []model.Commit
-		result2 error
-	}{result1, result2}
+		result2 model.PaginationData
+		result3 error
+	}{result1, result2, result3}
 }
 
 func (fake *FakeIRepositoryCommit) ResetCommitsFrom(arg1 context.Context, arg2 int, arg3 time.Time) error {

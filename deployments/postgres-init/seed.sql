@@ -11717,3 +11717,4 @@ INSERT INTO public.commits (id, repo_id, message, author, date, url) VALUES ('cm
 
 git-svn-id: svn://svn.chromium.org/blink/trunk@1109 bbb929c8-8fbe-4397-9dbb-9b2b20218538', 'darin', '2002-05-08 18:29:59.000000 +00:00', 'https://api.github.com/repos/chromium/chromium/git/commits/933c288e92a2ead8c7eee5ad1310c53ba3b6e7bb');
 
+SELECT SETVAL('public.repositories_id_seq', (SELECT MAX(id) FROM repositories));

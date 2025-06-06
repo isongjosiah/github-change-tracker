@@ -10,7 +10,7 @@ import (
 //counterfeiter:generate . IRepositoryCommit
 type IRepositoryCommit interface {
 	Add(ctx context.Context, commit []model.Commit) error
-	ListByRepoID(ctx context.Context, repoId, lastId, perPage int) ([]model.Commit, error)
+	ListByRepoID(ctx context.Context, repoId int, lastId string, perPage int) ([]model.Commit, model.PaginationData, error)
 	TopAuthors(ctx context.Context, topCount int) ([]model.TopAuthor, error)
 	ResetCommitsFrom(ctx context.Context, repoId int, resetTime time.Time) error
 }

@@ -135,7 +135,7 @@ func (r *GitRepoStorage) Update(ctx context.Context, repoID int, updates map[str
 // Commits retrieves all commits associated with a given repository name.
 // It first fetches the repository ID by name, then uses the CommitStorage
 // to list commits for that ID.
-func (r *GitRepoStorage) Commits(ctx context.Context, repoName string, lastCommitId, perPage int) ([]model.Commit, error) {
+func (r *GitRepoStorage) Commits(ctx context.Context, repoName, lastCommitId string, perPage int) ([]model.Commit, model.PaginationData, error) {
 	var repo model.Repository
 	err := GetDB(ctx, r.DB).NewSelect().
 		Model(&repo).
@@ -143,11 +143,11 @@ func (r *GitRepoStorage) Commits(ctx context.Context, repoName string, lastCommi
 		Column("id").
 		Scan(ctx)
 	if err != nil {
-		return nil, err
+		return nil, model.PaginationData{}, err
 	}
 
 	if r.CommitStorage == nil {
-		return nil, errors.New("CommitStorage is not initialized")
+		return nil, model.PaginationData{}, errors.New("CommitStorage is not initialized")
 	}
 
 	return r.CommitStorage.ListByRepoID(ctx, repo.ID, lastCommitId, perPage)
