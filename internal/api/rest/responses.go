@@ -3,10 +3,10 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 )
 
 type ServerResponse struct {
@@ -29,8 +29,7 @@ func WriteJSONResponse(rw http.ResponseWriter, statusCode int, content []byte) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(statusCode)
 	if _, err := rw.Write(content); err != nil {
-		logger, _ := zap.NewProduction()
-		logger.Error("Unable to write json response")
+		slog.Error("Unable to write json response")
 	}
 }
 

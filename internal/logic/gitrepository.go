@@ -8,6 +8,7 @@ import (
 	"heimdall/internal/dal"
 	"heimdall/internal/dal/model"
 	"heimdall/internal/dal/repositories"
+	"heimdall/internal/logger"
 	"heimdall/internal/services/github"
 	"heimdall/internal/services/messagequeue"
 	value "heimdall/internal/values"
@@ -32,15 +33,17 @@ type RepositoryLogic struct {
 	Commit        repositories.IRepositoryCommit
 	GitHubService github.IRepositoryService
 	Publisher     messagequeue.Producer
+	Logger        logger.Logger
 }
 
-func NewRepositoryLogic(db *bun.DB, gitRepo repositories.IGitRepository, commitRepo repositories.IRepositoryCommit, githubService github.IRepositoryService, publisher messagequeue.Producer) *RepositoryLogic {
+func NewRepositoryLogic(db *bun.DB, gitRepo repositories.IGitRepository, commitRepo repositories.IRepositoryCommit, githubService github.IRepositoryService, publisher messagequeue.Producer, logger logger.Logger) *RepositoryLogic {
 	return &RepositoryLogic{
 		DB:            db,
 		Repo:          gitRepo,
 		Commit:        commitRepo,
 		GitHubService: githubService,
 		Publisher:     publisher,
+		Logger:        logger,
 	}
 }
 

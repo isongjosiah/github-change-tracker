@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"heimdall/internal/api/rest"
 	"heimdall/internal/config"
 	deps "heimdall/internal/deps"
@@ -10,8 +12,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 const (
@@ -39,10 +39,9 @@ func main() {
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	<-stopChan
 
-	logger, _ := zap.NewProduction()
-	logger.Sugar().Infof("Request to shutdown server. Doing nothing for %v", allowConnectionsAfterShutdown)
+	appDep.Logger.Info(context.Background(), fmt.Sprintf("Request to shutdown server. Doing nothing for %v", allowConnectionsAfterShutdown))
 	waitTimer := time.NewTimer(allowConnectionsAfterShutdown)
 	<-waitTimer.C
 
-	logger.Info("Shutting down server...")
+	appDep.Logger.Info(context.Background(), "Shutting down server...")
 }

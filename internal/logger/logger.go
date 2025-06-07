@@ -9,6 +9,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -26,6 +27,13 @@ type Logger interface {
 type HybridLogger struct {
 	slogger *slog.Logger
 	tracer  trace.Tracer
+	meter   metric.Meter
+
+	// Prometheus Metrics
+	logCounter   metric.Int64Counter
+	errorCounter metric.Int64Counter
+	apiDuration  metric.Float64Histogram
+	dbDuration   metric.Float64Histogram
 }
 
 // NewHybridLogger creates a new hybrid logger instance
@@ -49,9 +57,41 @@ func NewHybridLogger(cfg *config.Config) *HybridLogger {
 
 	// setup opentelemetry tracer
 	tracer := otel.Tracer(cfg.ServiceName)
+	meter := otel.Meter(cfg.ServiceName)
+
+	// Initialize Prometheus metrics
+	logCounter, _ := meter.Int64Counter(
+		AppLogTotal,
+		metric.WithDescription("Total number of log messages"),
+		metric.WithUnit("1"),
+	)
+
+	errorCounter, _ := meter.Int64Counter(
+		AppErrorsTotal,
+		metric.WithDescription("Total number of error log messages"),
+		metric.WithUnit("1"),
+	)
+
+	apiDuration, _ := meter.Float64Histogram(
+		AppAPIDuration,
+		metric.WithDescription("API request duration in milliseconds"),
+		metric.WithUnit("ms"),
+	)
+
+	dbDuration, _ := meter.Float64Histogram(
+		AppDatabaseDurationMs,
+		metric.WithDescription("Database query duration in milliseconds"),
+		metric.WithUnit("ms"),
+	)
+
 	return &HybridLogger{
-		slogger: slogger,
-		tracer:  tracer,
+		slogger:      slogger,
+		tracer:       tracer,
+		meter:        meter,
+		logCounter:   logCounter,
+		errorCounter: errorCounter,
+		apiDuration:  apiDuration,
+		dbDuration:   dbDuration,
 	}
 }
 

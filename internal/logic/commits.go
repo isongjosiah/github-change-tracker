@@ -4,6 +4,7 @@ import (
 	"context"
 	"heimdall/internal/dal/model"
 	"heimdall/internal/dal/repositories"
+	"heimdall/internal/logger"
 	value "heimdall/internal/values"
 	"heimdall/pkg/function"
 	"net/url"
@@ -14,14 +15,16 @@ import (
 // applying any necessary business rules or transformations.
 type CommitLogic struct {
 	CommitRepo repositories.IRepositoryCommit
+	Logger     logger.Logger
 }
 
 // NewCommitLogic creates and returns a new instance of CommitLogic.
 // It takes an implementation of the IRepositoryCommit interface, which provides
 // data access capabilities for commits.
-func NewCommitLogic(commitRepo repositories.IRepositoryCommit) *CommitLogic {
+func NewCommitLogic(commitRepo repositories.IRepositoryCommit, logger logger.Logger) *CommitLogic {
 	return &CommitLogic{
 		CommitRepo: commitRepo,
+		Logger:     logger,
 	}
 }
 
