@@ -15,3 +15,12 @@ endif
 
 generate: get/counterfeiter get/stringer
 	go generate ./...
+
+run:
+	go run main.go
+
+watch:
+	ulimit -n 1000 #increase the file watch limit, might required on MacOS
+	reflex -s -r '\.go$$' make run
+migration-file:
+	goose -dir db/gmigrations/ create $(name) sql

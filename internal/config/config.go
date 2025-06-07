@@ -34,9 +34,10 @@ type Config struct {
 	// RMQUrl contains the connection string for the RabbitMQ (or other AMQP) server.
 	RMQUrl string `env:"RABBITMQ_URL,required,notEmpty,unset"`
 
-	Version        string
-	Environment    string
-	JaegerEndpoint string
+	Version      string
+	Environment  string
+	OTLPEndpoint string
+	ServiceName  string
 }
 
 // LoadConfig initializes the application's configuration by attempting to load

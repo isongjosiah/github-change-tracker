@@ -3,6 +3,7 @@ package dep
 import (
 	"heimdall/internal/config"
 	"heimdall/internal/dal"
+	"heimdall/internal/logger"
 	"heimdall/internal/services/github"
 	"heimdall/internal/services/messagequeue"
 	"log"
@@ -21,6 +22,7 @@ type Dependencies struct {
 	DAL           dal.DAL
 	GitHubService github.IRepositoryService
 	Producer      messagequeue.Producer
+	Logger        logger.Logger
 }
 
 // New initializes and returns a singleton instance of the application's dependencies.
@@ -40,10 +42,12 @@ func New(cfg *config.Config) *Dependencies {
 		if err != nil {
 			log.Fatalf("failed to setup task queue -> %s ", err.Error())
 		}
+		serviceLogger := logger.NewHybridLogger(cfg)
 		dep = &Dependencies{
 			DAL:           *dal.NewDAL(cfg),
-			GitHubService: *github.NewService(cfg),
+			GitHubService: *github.NewService(cfg, serviceLogger),
 			Producer:      messagequeue.RMQProducer{},
+			Logger:        serviceLogger,
 		}
 	})
 

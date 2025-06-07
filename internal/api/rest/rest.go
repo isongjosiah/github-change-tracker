@@ -17,7 +17,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"go.uber.org/zap"
 )
 
 type API struct {
@@ -35,8 +34,7 @@ func NewAPI(config *config.Config, dep *dep.Dependencies) (*API, error) {
 		ServiceName:    "heimdall",
 		ServiceVersion: config.Version,
 		Environment:    config.Environment,
-		JaegerEndpoint: config.JaegerEndpoint,
-		// Logger:         dep.Logger,
+		Logger:         dep.Logger,
 	}
 
 	tel, err := monitoring.Initialize(telemetryConfig)
@@ -136,8 +134,7 @@ func (a *API) SetupServerHandler() http.Handler {
 
 	mux.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := w.Write([]byte(`{ health: "ok" }`)); err != nil {
-			logger, _ := zap.NewProduction()
-			logger.Info("Unable to write health response")
+			a.Deps.Logger.Info(context.Background(), "Unable to write health response")
 		}
 	})
 	mux.Mount("/commits", a.CommitRoutes())
