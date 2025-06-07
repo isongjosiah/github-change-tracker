@@ -42,11 +42,12 @@ func New(cfg *config.Config) *Dependencies {
 		if err != nil {
 			log.Fatalf("failed to setup task queue -> %s ", err.Error())
 		}
+		serviceLogger := logger.NewHybridLogger(cfg)
 		dep = &Dependencies{
 			DAL:           *dal.NewDAL(cfg),
-			GitHubService: *github.NewService(cfg),
+			GitHubService: *github.NewService(cfg, serviceLogger),
 			Producer:      messagequeue.RMQProducer{},
-			Logger:        logger.NewHybridLogger(cfg),
+			Logger:        serviceLogger,
 		}
 	})
 

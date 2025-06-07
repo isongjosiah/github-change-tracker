@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"heimdall/internal/config"
 	"heimdall/internal/dal/model"
+	"heimdall/internal/logger"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -30,16 +32,101 @@ var (
 
 type Service struct {
 	authToken string
+	limiter   *RateLimiter
+	client    *http.Client
+	logger    logger.Logger
 }
 
-func NewService(config *config.Config) *Service {
+func NewService(config *config.Config, logger logger.Logger) *Service {
 	once.Do(func() {
 		service = &Service{
 			authToken: config.GithubToken,
+			limiter:   NewRateLimiter(config),
+			client:    &http.Client{Timeout: 30 * time.Second},
+			logger:    logger,
 		}
 	})
 
 	return service
+}
+
+// makeRequest wraps HTTP requests with rate limiting
+func (s Service) makeRequest(ctx context.Context, method, endpoint string, headers map[string]string, body io.Reader) (*http.Response, error) {
+	if !s.limiter.CanMakeRequest() {
+		waitTime := s.limiter.WaitUntilReset()
+		s.logger.Error(ctx, fmt.Sprintf("[GitHub]: Rate limit exceeded. Need to wait %v until reset", waitTime))
+		return nil, errors.New(fmt.Sprintf("rate limit exceeded. resets in %v", waitTime))
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, body)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create request")
+	}
+
+	// Set headers
+	if s.authToken != "" {
+		req.Header.Set("Authorization", "Bearer "+s.authToken)
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	for headerKey, headerValue := range headers {
+		req.Header.Set(headerKey, headerValue)
+	}
+
+	// Make the request
+	resp, err := s.client.Do(req)
+	if err != nil {
+		s.logger.Error(ctx, fmt.Sprintf("[GitHub]: Failed to execute http request. %v", err.Error()))
+		return nil, errors.Wrap(err, "failed to execute request")
+	}
+
+	// If we get a 403 status code, we assume that we have hit a rate limit
+	// we can check if the message contains `Rate Limit` to confirm, but
+	// this might change, so we'll err on the side of caution and treat all
+	// 403 as rate limit is reached
+	if resp.StatusCode == http.StatusForbidden {
+		waitTime := s.limiter.WaitUntilReset()
+		return nil, errors.New(fmt.Sprintf("rate limit exceeded, resets in %v", waitTime))
+	}
+
+	return resp, nil
+}
+
+// makeRequestWithRetry wraps makeRequest with automatic retry logic
+func (s *Service) makeRequestWithRetry(ctx context.Context, method, endpoint string, header map[string]string, body io.Reader, maxRetries int) (*http.Response, error) {
+	var lastErr error
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		resp, err := s.makeRequest(ctx, method, endpoint, header, body)
+		if err == nil {
+			return resp, nil
+		}
+
+		// Check if it's a rate limit error
+		if !strings.Contains(err.Error(), "rate limit exceeded") {
+			return nil, err
+		}
+
+		lastErr = err
+
+		// If this was our last attempt, return error
+		if attempt == maxRetries {
+			break
+		}
+
+		// Wait before retry
+		waitTime := s.limiter.WaitUntilReset()
+		s.logger.Info(ctx, fmt.Sprintf("[GitHub] Rate limited on attempt %d/%d, waiting %v...", attempt+1, maxRetries, waitTime))
+
+		select {
+		case <-time.After(waitTime):
+			// Continue to next attempt
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+
+	}
+
+	return nil, lastErr
 }
 
 // ListCommit retrieves commits from the GitHub API
@@ -57,17 +144,9 @@ func (s Service) ListCommit(ctx context.Context, repoOwner, repoName string, sta
 			endpoint = link
 		}
 	}
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	res, err := s.makeRequestWithRetry(ctx, http.MethodGet, endpoint, nil, nil, 2)
 	if err != nil {
-		return nil, "", errors.Wrap(err, "Failed to create request to retrieve commits")
-	}
-	if s.authToken != "" {
-		req.Header.Set("Authorization", "Bearer "+s.authToken)
-	}
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, "", errors.Wrap(err, "Failed to execute request for commits")
+		return nil, "", errors.Wrap(err, "failed to retrieve commits")
 	}
 
 	if res.StatusCode != http.StatusOK {
@@ -93,18 +172,9 @@ func (s Service) GetRepository(ctx context.Context, repoOwner, repoName string) 
 	path := fmt.Sprintf("/repos/%s/%s", repoOwner, repoName)
 	endpoint := BaseUrl + path
 
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	res, err := s.makeRequestWithRetry(ctx, http.MethodGet, endpoint, nil, nil, 2)
 	if err != nil {
-		return nil, err
-	}
-
-	if s.authToken != "" {
-		req.Header.Set("Authorization", "Bearer "+s.authToken)
-	}
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to retrieve repository")
 	}
 
 	if res.StatusCode != http.StatusOK {
