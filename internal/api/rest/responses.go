@@ -10,11 +10,11 @@ import (
 )
 
 type ServerResponse struct {
-	Err        error       `json:"-"`
-	Message    string      `json:"message"`
-	Status     string      `json:"status"`
-	StatusCode int         `json:"status_code"`
-	Payload    interface{} `json:"payload"`
+	Err        error  `json:"-"`
+	Message    string `json:"message"`
+	Status     string `json:"status"`
+	StatusCode int    `json:"status_code"`
+	Payload    any    `json:"payload"`
 }
 
 type ErrorResponse struct {

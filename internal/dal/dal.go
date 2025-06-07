@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pressly/goose"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
@@ -114,7 +115,27 @@ func CreateIndex(Conn *bun.DB) error {
 	// Define all indexes to be created.
 	// Keys are pointers to the model structs, values are TableIndex definitions.
 	indexesToCreate := map[any][]TableIndex{
-		// TODO: create the indexes
+		&model.Repository{}: {
+			{
+				IndexName: "idx_repositories_url_unique", // Explicitly name the index
+				Columns:   []string{"url"},
+				Unique:    true, // Enforce uniqueness for repository URLs
+			},
+		},
+		&model.Commit{}: {
+			{
+				IndexName: "idx_commits_repo_id", // Index for filtering by repository ID
+				Columns:   []string{"repo_id"},
+				Unique:    false,
+			},
+			{
+				IndexName: "idx_commits_repo_id_hash", // Compound index for pagination within a repo
+				Columns:   []string{"repo_id", "hash"},
+				Unique:    false, // commit hash might be unique only within a given repo, but not globally.
+				// If (repo_id, hash) *together* are unique, set Unique: true.
+				// For pagination, it's often not strictly unique, so false is safer.
+			},
+		},
 	}
 
 	var wg sync.WaitGroup
@@ -171,6 +192,25 @@ func CreateIndex(Conn *bun.DB) error {
 		}
 	}
 	return nil // Return nil if all indexes were created successfully or already existed.
+}
+
+// MigrateDB applies all *.up.sql migrations to the current database
+func MigrateDB(cfg *config.Config) error {
+	databaseURL := os.Getenv("DATABASE_URL")
+	sqlDB := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(databaseURL)))
+	defer sqlDB.Close()
+
+	// set dialect to postgreSQL
+	if err := goose.SetDialect("postgres"); err != nil {
+		return fmt.Errorf("[goose]: failed to set dialect for migration: %w", err)
+	}
+
+	// do Up migrations
+	if err := goose.Up(sqlDB, "dal/gmigrations"); err != nil {
+		return fmt.Errorf("[goose]: failed to apply migrations: %w", err)
+	}
+
+	return nil
 }
 
 // NewDAL initializes a new Data Access Layer instance.

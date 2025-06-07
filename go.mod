@@ -11,6 +11,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lucsky/cuid v1.2.1
 	github.com/pkg/errors v0.9.1
+	github.com/pressly/goose v2.7.0+incompatible
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/riandyrn/otelchi v0.12.1
 	github.com/robfig/cron/v3 v3.0.1
