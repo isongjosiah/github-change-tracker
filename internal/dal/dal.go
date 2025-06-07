@@ -128,13 +128,6 @@ func CreateIndex(Conn *bun.DB) error {
 				Columns:   []string{"repo_id"},
 				Unique:    false,
 			},
-			{
-				IndexName: "idx_commits_repo_id_hash", // Compound index for pagination within a repo
-				Columns:   []string{"repo_id", "hash"},
-				Unique:    false, // commit hash might be unique only within a given repo, but not globally.
-				// If (repo_id, hash) *together* are unique, set Unique: true.
-				// For pagination, it's often not strictly unique, so false is safer.
-			},
 		},
 	}
 
