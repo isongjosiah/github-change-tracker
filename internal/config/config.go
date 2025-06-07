@@ -37,6 +37,7 @@ type Config struct {
 	Version        string
 	Environment    string
 	JaegerEndpoint string
+	ServiceName    string
 }
 
 // LoadConfig initializes the application's configuration by attempting to load

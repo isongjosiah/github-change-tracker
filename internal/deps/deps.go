@@ -3,6 +3,7 @@ package dep
 import (
 	"heimdall/internal/config"
 	"heimdall/internal/dal"
+	"heimdall/internal/logger"
 	"heimdall/internal/services/github"
 	"heimdall/internal/services/messagequeue"
 	"log"
@@ -21,6 +22,7 @@ type Dependencies struct {
 	DAL           dal.DAL
 	GitHubService github.IRepositoryService
 	Producer      messagequeue.Producer
+	Logger        logger.Logger
 }
 
 // New initializes and returns a singleton instance of the application's dependencies.
@@ -44,6 +46,7 @@ func New(cfg *config.Config) *Dependencies {
 			DAL:           *dal.NewDAL(cfg),
 			GitHubService: *github.NewService(cfg),
 			Producer:      messagequeue.RMQProducer{},
+			Logger:        logger.NewHybridLogger(cfg),
 		}
 	})
 
