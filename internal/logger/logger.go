@@ -1,5 +1,6 @@
 package logger
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
 import (
 	"context"
 	"fmt"
@@ -15,6 +16,8 @@ import (
 )
 
 // Logger interface describes the system central logger
+//
+//counterfeiter:generate . Logger
 type Logger interface {
 	Debug(ctx context.Context, msg string, args ...any)
 	Info(ctx context.Context, msg string, args ...any)

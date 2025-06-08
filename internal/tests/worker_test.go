@@ -8,6 +8,7 @@ import (
 	"heimdall/internal/dal/model"
 	"heimdall/internal/dal/repositories/repositoriesfakes"
 	dep "heimdall/internal/deps"
+	"heimdall/internal/logger/loggerfakes"
 	"heimdall/internal/logic"
 	"heimdall/internal/services/github/githubfakes"
 	"heimdall/internal/services/messagequeue/messagequeuefakes"
@@ -30,6 +31,7 @@ var (
 
 	githubService *githubfakes.FakeIRepositoryService
 	producer      *messagequeuefakes.FakeProducer
+	logger        *loggerfakes.FakeLogger
 
 	dependencies  *dep.Dependencies
 	serverHandler http.Handler
@@ -49,6 +51,7 @@ func TestMain(m *testing.M) {
 	repositoryDal = &repositoriesfakes.FakeIGitRepository{}
 	githubService = &githubfakes.FakeIRepositoryService{}
 	producer = &messagequeuefakes.FakeProducer{}
+	logger = &loggerfakes.FakeLogger{}
 
 	dependencies = &dep.Dependencies{
 		DAL: dal.DAL{
@@ -58,6 +61,7 @@ func TestMain(m *testing.M) {
 		},
 		GitHubService: githubService,
 		Producer:      producer,
+		Logger:        logger,
 	}
 
 	restApi = &rest.API{

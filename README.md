@@ -89,14 +89,6 @@ for monitoring and metrics
 - Implement a **bounded retry strategy** (e.g., exponential backoff) with a configurable maximum number of retries per repository.
 - Improve observability by **logging failures with context**, such as batch start index and size, to support manual debugging and recovery.
 
-### 2. 🚦 Rate Limiting & Worker Coordination
-
-- Add support for monitoring GitHub’s **API rate limit headers** (e.g., `X-RateLimit-Remaining`, `X-RateLimit-Reset`).
-- On approaching rate limits, enable **inter-worker communication** via channels or a shared cache (e.g., Redis) to:
-  - Temporarily **pause job processing**.
-  - **Resume automatically** when the rate window resets.
-- This protects the system from hitting hard limits and ensures graceful degradation.
-
 ### 3. 📈 Monitoring & Observability Stack
 
 To ensure operational insight and rapid troubleshooting:
