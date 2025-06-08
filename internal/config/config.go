@@ -35,8 +35,8 @@ type Config struct {
 	RMQUrl string `env:"RABBITMQ_URL,required,notEmpty,unset"`
 
 	Version      string
-	Environment  string
-	OTLPEndpoint string
+	Environment  string `env:"ENVIRONMENT" envDefault:"development"`
+	OTLPEndpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT,required,notEmpty"`
 	ServiceName  string
 }
 

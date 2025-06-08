@@ -3,6 +3,7 @@ package messagequeue
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
 import (
 	"context"
+	"heimdall/internal/logger"
 
 	rmq "github.com/rabbitmq/amqp091-go"
 )
@@ -29,6 +30,7 @@ type RMQConsumer struct {
 	Queue      string
 	MsgHandler func(ctx context.Context, msg rmq.Delivery) error
 	AutoAck    bool
+	Logger     logger.Logger
 }
 
 const (

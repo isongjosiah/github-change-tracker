@@ -9,7 +9,7 @@ import (
 )
 
 type FakeIGitRepository struct {
-	AddStub        func(context.Context, model.Repository) (model.Repository, error)
+	AddStub        func(context.Context, model.Repository) (model.Repository, int64, error)
 	addMutex       sync.RWMutex
 	addArgsForCall []struct {
 		arg1 context.Context
@@ -17,11 +17,13 @@ type FakeIGitRepository struct {
 	}
 	addReturns struct {
 		result1 model.Repository
-		result2 error
+		result2 int64
+		result3 error
 	}
 	addReturnsOnCall map[int]struct {
 		result1 model.Repository
-		result2 error
+		result2 int64
+		result3 error
 	}
 	CommitsStub        func(context.Context, string, string, int) ([]model.Commit, model.PaginationData, error)
 	commitsMutex       sync.RWMutex
@@ -90,7 +92,7 @@ type FakeIGitRepository struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeIGitRepository) Add(arg1 context.Context, arg2 model.Repository) (model.Repository, error) {
+func (fake *FakeIGitRepository) Add(arg1 context.Context, arg2 model.Repository) (model.Repository, int64, error) {
 	fake.addMutex.Lock()
 	ret, specificReturn := fake.addReturnsOnCall[len(fake.addArgsForCall)]
 	fake.addArgsForCall = append(fake.addArgsForCall, struct {
@@ -105,9 +107,9 @@ func (fake *FakeIGitRepository) Add(arg1 context.Context, arg2 model.Repository)
 		return stub(arg1, arg2)
 	}
 	if specificReturn {
-		return ret.result1, ret.result2
+		return ret.result1, ret.result2, ret.result3
 	}
-	return fakeReturns.result1, fakeReturns.result2
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
 }
 
 func (fake *FakeIGitRepository) AddCallCount() int {
@@ -116,7 +118,7 @@ func (fake *FakeIGitRepository) AddCallCount() int {
 	return len(fake.addArgsForCall)
 }
 
-func (fake *FakeIGitRepository) AddCalls(stub func(context.Context, model.Repository) (model.Repository, error)) {
+func (fake *FakeIGitRepository) AddCalls(stub func(context.Context, model.Repository) (model.Repository, int64, error)) {
 	fake.addMutex.Lock()
 	defer fake.addMutex.Unlock()
 	fake.AddStub = stub
@@ -129,30 +131,33 @@ func (fake *FakeIGitRepository) AddArgsForCall(i int) (context.Context, model.Re
 	return argsForCall.arg1, argsForCall.arg2
 }
 
-func (fake *FakeIGitRepository) AddReturns(result1 model.Repository, result2 error) {
+func (fake *FakeIGitRepository) AddReturns(result1 model.Repository, result2 int64, result3 error) {
 	fake.addMutex.Lock()
 	defer fake.addMutex.Unlock()
 	fake.AddStub = nil
 	fake.addReturns = struct {
 		result1 model.Repository
-		result2 error
-	}{result1, result2}
+		result2 int64
+		result3 error
+	}{result1, result2, result3}
 }
 
-func (fake *FakeIGitRepository) AddReturnsOnCall(i int, result1 model.Repository, result2 error) {
+func (fake *FakeIGitRepository) AddReturnsOnCall(i int, result1 model.Repository, result2 int64, result3 error) {
 	fake.addMutex.Lock()
 	defer fake.addMutex.Unlock()
 	fake.AddStub = nil
 	if fake.addReturnsOnCall == nil {
 		fake.addReturnsOnCall = make(map[int]struct {
 			result1 model.Repository
-			result2 error
+			result2 int64
+			result3 error
 		})
 	}
 	fake.addReturnsOnCall[i] = struct {
 		result1 model.Repository
-		result2 error
-	}{result1, result2}
+		result2 int64
+		result3 error
+	}{result1, result2, result3}
 }
 
 func (fake *FakeIGitRepository) Commits(arg1 context.Context, arg2 string, arg3 string, arg4 int) ([]model.Commit, model.PaginationData, error) {

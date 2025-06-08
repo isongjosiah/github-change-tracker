@@ -1,7 +1,9 @@
 package logger
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
 import (
 	"context"
+	"fmt"
 	"heimdall/internal/config"
 	"log/slog"
 	"os"
@@ -14,6 +16,8 @@ import (
 )
 
 // Logger interface describes the system central logger
+//
+//counterfeiter:generate . Logger
 type Logger interface {
 	Debug(ctx context.Context, msg string, args ...any)
 	Info(ctx context.Context, msg string, args ...any)
@@ -39,6 +43,7 @@ type HybridLogger struct {
 // NewHybridLogger creates a new hybrid logger instance
 func NewHybridLogger(cfg *config.Config) *HybridLogger {
 	level := slog.LevelError
+	fmt.Println(cfg.Environment)
 	if cfg.Environment == "development" {
 		level = slog.LevelDebug
 	}

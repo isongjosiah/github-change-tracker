@@ -12,6 +12,7 @@ services:
       - DATABASE_URL=postgresql://user:password@postgres:5432/mydatabase?sslmode=disable
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - ENVIRONMENT=development
       #- GITHUB_TOKEN=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
     depends_on:
       - postgres

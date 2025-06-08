@@ -12,12 +12,12 @@ type Repository struct {
 	ID int `json:"id" bun:"id,pk,autoincrement"`
 
 	// Owner is the GitHub username or organization name that owns the repository.
-	Owner string `json:"owner,omitempty" bun:"owner"`
+	Owner string `json:"owner,omitempty" bun:"owner,unique:repo"`
 
 	// Name is the name of the GitHub repository.
-	Name string `json:"name,omitempty" bun:"name"`
+	Name string `json:"name,omitempty" bun:"name,unique:repo"`
 
-	URL string `json:"url,omitempty" bun:"url"`
+	URL string `json:"url,omitempty" bun:"url,unique:repo"`
 
 	// LastFetched stores the timestamp of the last successful commit fetch for this repository.
 	// This helps in fetching only new commits since the last poll.
@@ -28,6 +28,8 @@ type Repository struct {
 	UpdatedAt time.Time `json:"updated_at" bun:"updated_at"`
 }
 
+// PullCommitTask returns task payload to push to the
+// queue for pulling the commits for a repository
 func (r Repository) PullCommitTask() CommitPullJob {
 	return CommitPullJob{
 		Id:          r.ID,
@@ -121,10 +123,6 @@ func (r NewRepository) Payload() ([]byte, error) {
 		return nil, err
 	}
 	return body, nil
-}
-
-func (r NewRepository) Type() string {
-	return "new-repository"
 }
 
 type ResetCommitReq struct {
