@@ -107,19 +107,6 @@ These improvements would increase the platform’s **resilience**, **scalability
 
 ---
 
-### Checklist
-
-[x] create Docker compose files for system components.
-[x] setup server.
-[x] setup OpenTelemetry Collector and services
-[x] implement endpoint to save repository.
-[x] implement endpoints to retrieve information
-[x] implement workers for adding repository
-[x] implement workers for pulling commit information
-[x] write tests
-
----
-
 ## Running Locally
 
 Use Docker Compose to bring up the environment:
@@ -127,4 +114,15 @@ Use Docker Compose to bring up the environment:
 ```bash
 cd deployments
 docker-compose up
+```
+
+---
+
+## Running Tests
+
+Use Docker Compose to bring up the environment:
+
+```bash
+make generate
+go test -v ./...
 ```

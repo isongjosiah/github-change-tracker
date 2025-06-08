@@ -76,7 +76,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestMonitor_ScheduleCommitPooling(t *testing.T) {
+func TestCommitPooling(t *testing.T) {
 	databaseRepoRes := []model.Repository{
 		{
 			ID:          1,
@@ -274,4 +274,10 @@ func TestMonitor_ScheduleCommitPooling(t *testing.T) {
 	restApi.Logic.Repository.ScheduleRepositoryPool()
 	assert.Equal(t, 2, repositoryDal.ListCallCount())
 	assert.Equal(t, 2, producer.PublishMessageCallCount())
+}
+
+func TestRepoCreation(t *testint.T) {
+	tests := []struct {
+		name string
+	}
 }
