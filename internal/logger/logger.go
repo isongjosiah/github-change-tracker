@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"fmt"
 	"heimdall/internal/config"
 	"log/slog"
 	"os"
@@ -39,6 +40,7 @@ type HybridLogger struct {
 // NewHybridLogger creates a new hybrid logger instance
 func NewHybridLogger(cfg *config.Config) *HybridLogger {
 	level := slog.LevelError
+	fmt.Println(cfg.Environment)
 	if cfg.Environment == "development" {
 		level = slog.LevelDebug
 	}

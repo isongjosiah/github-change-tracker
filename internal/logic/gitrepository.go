@@ -198,7 +198,7 @@ func (r *RepositoryLogic) ScheduleRepositoryPool() {
 	mu.Lock()
 	defer mu.Unlock()
 
-	fmt.Println("running repository pooling job")
+	r.Logger.Info(context.Background(), "running repository pooling job")
 	lastId := 0
 	perPage := 10
 	ctx := context.Background()
@@ -212,7 +212,6 @@ func (r *RepositoryLogic) ScheduleRepositoryPool() {
 		if repos == nil {
 			break
 		}
-		fmt.Println("repos is ->", repos)
 		for _, repo := range repos {
 			err := r.Publisher.PublishMessage(messagequeue.PullCommit, "", repo.PullCommitTask())
 			if err != nil {
@@ -228,6 +227,7 @@ func (r *RepositoryLogic) ScheduleRepositoryPool() {
 // It fetches commits from GitHub, transforms them, and stores them in the database.
 // It also updates the repository's last fetched timestamp.
 func (r *RepositoryLogic) HandleCommitPull(ctx context.Context, delivery amqp091.Delivery) error {
+	r.Logger.Info(ctx, "[Async]: Pulling commits for repository")
 	var repo model.CommitPullJob
 	err := json.Unmarshal(delivery.Body, &repo)
 	if err != nil {
@@ -239,6 +239,13 @@ func (r *RepositoryLogic) HandleCommitPull(ctx context.Context, delivery amqp091
 	if err != nil {
 		fmt.Println("failed to retrieve commits ->", err.Error())
 		return err
+	}
+
+	// if the length of column is 0 and there is no error
+	// then no update has happened since the last check, skip
+	// repository
+	if len(commits) == 0 {
+		return nil
 	}
 	parsedLink, err := github.ParseLinkHeader(link)
 	if err != nil {
@@ -310,7 +317,6 @@ func (r *RepositoryLogic) HandleCommitPull(ctx context.Context, delivery amqp091
 		if err != nil {
 			return err
 		}
-		fmt.Println(parsedLink)
 		if _, ok := parsedLink["prev"]; !ok {
 			break
 		}

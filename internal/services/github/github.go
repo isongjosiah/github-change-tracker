@@ -144,9 +144,22 @@ func (s Service) ListCommit(ctx context.Context, repoOwner, repoName string, sta
 			endpoint = link
 		}
 	}
-	res, err := s.makeRequestWithRetry(ctx, http.MethodGet, endpoint, nil, nil, 2)
+
+	// setup If-Modified-Since header
+	outputFormat := "Mon, 02 Jan 2006 15:04:05 GMT"
+	formattedTime := startAt.In(time.FixedZone("GMT", 0)).Format(outputFormat)
+	header := map[string]string{
+		"If-Modified-Since": formattedTime,
+	}
+
+	res, err := s.makeRequestWithRetry(ctx, http.MethodGet, endpoint, header, nil, 2)
 	if err != nil {
 		return nil, "", errors.Wrap(err, "failed to retrieve commits")
+	}
+
+	if res.StatusCode == http.StatusNotModified {
+		s.logger.Info(ctx, fmt.Sprintf("[GitHub]: no new commits for repository %s/%s. Skipping", repoOwner, repoName))
+		return []Commit{}, "", nil
 	}
 
 	if res.StatusCode != http.StatusOK {
