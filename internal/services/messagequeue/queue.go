@@ -68,7 +68,7 @@ func (rp RMQProducer) PublishMessage(queueName, dlq string, message any) error {
 }
 
 // Consume consumes messages from the task queue
-func (rc RMQConsumer) Consume() {
+func (rc RMQConsumer) Consume(numOfWorkers int) {
 	ch, err := RmqConn.Channel()
 	if err != nil {
 		rmq.Logger.Printf("[Queue]: failed to create channel: %v", err.Error())
@@ -103,13 +103,39 @@ func (rc RMQConsumer) Consume() {
 				log.Println(fmt.Sprintf("[worker."+rc.Queue+"] Panic!! %v", err), slog.LevelError, true)
 			}
 		}()
-		for d := range messages {
-			err := rc.MsgHandler(context.Background(), d)
-			if err != nil {
-				Nack(d)
-				continue
-			}
-			Ack(d)
+
+		for i := range numOfWorkers {
+			rc.Logger.Info(context.Background(), fmt.Sprintf("[Consumer]: starting worker %v for consumer ", i))
+			go func() {
+				defer func() {
+					r := recover()
+					if r != nil {
+						s := debug.Stack()
+						fmt.Printf("Recovered from panic!\n%+v\nStack Trace -> %s\n", r, string(s))
+
+						var err error
+						switch t := r.(type) {
+						case string:
+							err = errors.New(t)
+						case error:
+							err = errors.WithStack(t)
+						default:
+							err = fmt.Errorf("unknown error %v", t)
+						}
+						log.Println(fmt.Sprintf("[worker."+rc.Queue+"] Panic!! %v", err), slog.LevelError, true)
+					}
+				}()
+
+				for d := range messages {
+					rc.Logger.Info(context.Background(), fmt.Sprintf("[Consumer]: worker %v handling message", i))
+					err := rc.MsgHandler(context.Background(), d)
+					if err != nil {
+						Nack(d)
+						continue
+					}
+					Ack(d)
+				}
+			}()
 		}
 	}()
 }

@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"heimdall/internal/config"
+	"heimdall/internal/logger"
 	"heimdall/internal/services/messagequeue"
 	"log"
 
@@ -16,22 +17,24 @@ func InitWorkers(l *Logic, config *config.Config) {
 		return
 	}
 
-	processCommitPull(l.Repository.HandleCommitPull)
-	processRepositoryAddition(l.Repository.HandleRepositoryAddition)
+	processCommitPull(l.Repository.HandleCommitPull, l.Logger)
+	processRepositoryAddition(l.Repository.HandleRepositoryAddition, l.Logger)
 }
 
 type workerHandler func(ctx context.Context, message amqp091.Delivery) error
 
-func processRepositoryAddition(handler workerHandler) {
+func processRepositoryAddition(handler workerHandler, l logger.Logger) {
 	(messagequeue.RMQConsumer{
 		Queue:      messagequeue.AddRepo,
 		MsgHandler: handler,
-	}).Consume()
+		Logger:     l,
+	}).Consume(4)
 }
 
-func processCommitPull(handler workerHandler) {
+func processCommitPull(handler workerHandler, l logger.Logger) {
 	(messagequeue.RMQConsumer{
 		Queue:      messagequeue.PullCommit,
 		MsgHandler: handler,
-	}).Consume()
+		Logger:     l,
+	}).Consume(10)
 }
