@@ -176,11 +176,14 @@ func (r *RepositoryLogic) HandleRepositoryAddition(ctx context.Context, delivery
 			return errors.Wrap(err, "Failed to retrieve detail for gitHub repository "+repo.URL)
 		}
 
-		repo, err := r.Repo.Add(ctx, *gitRepo)
+		repo, added, err := r.Repo.Add(ctx, *gitRepo)
 		if err != nil {
 			return errors.Wrap(err, "Failed to add repository to DB")
 		}
-		fmt.Println(repo)
+		if added == 0 { // a conflict was encountered
+			r.Logger.Info(ctx, fmt.Sprintf("Repository %s/%s already exists. Skipping", repo.Owner, repo.Name))
+			return nil
+		}
 
 		err = r.Publisher.PublishMessage(messagequeue.PullCommit, "", repo.PullCommitTask())
 

@@ -1,22 +1,29 @@
--- create update
-create table if not exists public.repositories
+-- create repositories
+CREATE TABLE repositories
 (
     id           bigserial
-        primary key,
+        PRIMARY KEY,
     owner        varchar,
     name         varchar,
     url          varchar,
     last_fetched timestamp with time zone,
     created_at   timestamp with time zone,
-    updated_at   timestamp with time zone
+    updated_at   timestamp with time zone,
+    CONSTRAINT repo
+        UNIQUE (owner, name, url)
 );
 
-alter table public.repositories
-    owner to "user";
+ALTER TABLE repositories
+    OWNER TO "user";
 
-create table if not exists public.commits
+CREATE UNIQUE INDEX idx_repositories_url_unique
+    ON repositories (url);
+
+-- create commits
+CREATE TABLE commits
 (
-    id      varchar,
+    id      varchar NOT NULL
+        PRIMARY KEY,
     repo_id bigint,
     message varchar,
     author  varchar,
@@ -24,8 +31,13 @@ create table if not exists public.commits
     url     varchar
 );
 
-alter table public.commits
-    owner to "user";
+ALTER TABLE commits
+    OWNER TO "user";
+
+CREATE INDEX idx_commits_repo_id
+    ON commits (repo_id);
+
+
 
 -- insert repositories
 INSERT INTO public.repositories (id, owner, name, url, last_fetched, created_at, updated_at) VALUES (1, 'chromium', 'chromium', 'https://github.com/chromium/chromium', '2002-05-10 00:00:00.000000 +00:00', '2025-06-05 19:58:22.213428 +00:00', '2025-06-05 19:58:22.213428 +00:00');

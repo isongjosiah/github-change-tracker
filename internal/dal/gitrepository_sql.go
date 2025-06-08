@@ -2,12 +2,13 @@ package dal
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"heimdall/internal/dal/model"
 	"heimdall/internal/dal/repositories"
 	"log"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/uptrace/bun"
 )
@@ -34,13 +35,18 @@ func NewGitRepoStorage(db *bun.DB, commitStorage repositories.IRepositoryCommit)
 
 // Add inserts a new repository into the database.
 // It returns the created repository with its generated ID and any error encountered.
-func (r *GitRepoStorage) Add(ctx context.Context, rep model.Repository) (model.Repository, error) {
-	_, err := GetDB(ctx, r.DB).
+func (r *GitRepoStorage) Add(ctx context.Context, rep model.Repository) (model.Repository, int64, error) {
+	sqlResult, err := GetDB(ctx, r.DB).
 		NewInsert().
 		Returning("*").
 		Model(&rep).Exec(ctx)
 
-	return rep, err
+	count, err := sqlResult.RowsAffected()
+	if err != nil {
+		return rep, 0, errors.Wrap(err, "Failed to retrieve count of rows affected")
+	}
+
+	return rep, count, err
 }
 
 // GetByURL retrieves a single repository from the database by its URL.
