@@ -7,6 +7,7 @@ import (
 	"heimdall/internal/config"
 	"log"
 	"log/slog"
+	"os"
 	"runtime/debug"
 	"time"
 
@@ -41,6 +42,30 @@ func Connect(config *config.Config) (err error) {
 	return errors.New("failed to connect to RabbitMQ after multiple attempts: " + err.Error())
 }
 
+func setupQueue(ch *rmq.Channel, queueName, dlq string) (rmq.Queue, error) {
+	if dlq == "" {
+		dlq = queueName + ".dlq"
+	}
+	dlx := dlq + ".xchg"
+
+	if err := ch.ExchangeDeclare(dlx, "direct", true, false, false, false, nil); err != nil {
+		return rmq.Queue{}, err
+	}
+
+	if _, err := ch.QueueDeclare(dlq, true, false, false, false, nil); err != nil {
+		return rmq.Queue{}, err
+	}
+
+	if err := ch.QueueBind(dlq, dlq, dlx, false, nil); err != nil {
+		return rmq.Queue{}, err
+	}
+
+	return ch.QueueDeclare(queueName, true, false, false, false, rmq.Table{
+		"x-dead-letter-exchange":    dlx,
+		"x-dead-letter-routing-key": dlq,
+	})
+}
+
 // PublishMessage publishes a message to a queue task
 func (rp RMQProducer) PublishMessage(queueName, dlq string, message any) error {
 	jsonStr, err := json.Marshal(message)
@@ -52,11 +77,7 @@ func (rp RMQProducer) PublishMessage(queueName, dlq string, message any) error {
 	if err != nil {
 		return err
 	}
-
-	queue, err := ch.QueueDeclare(queueName, true, false, false, false, nil)
-	if err != nil {
-		return err
-	}
+	queue, err := setupQueue(ch, queueName, "")
 
 	pubMessage := rmq.Publishing{
 		ContentType: "application/json",
@@ -72,16 +93,19 @@ func (rc RMQConsumer) Consume(numOfWorkers int) {
 	ch, err := RmqConn.Channel()
 	if err != nil {
 		rmq.Logger.Printf("[Queue]: failed to create channel: %v", err.Error())
+		os.Exit(1)
 	}
 
-	queue, err := ch.QueueDeclare(rc.Queue, true, false, false, false, nil)
+	queue, err := setupQueue(ch, rc.Queue, "")
 	if err != nil {
-		rmq.Logger.Printf("[Queue]: failed to declare channel: %v", err.Error())
+		rmq.Logger.Printf("[Queue]: failed to setup queue: %s | error : %v", rc.Queue, err.Error())
+		os.Exit(1)
 	}
 
 	messages, err := ch.Consume(queue.Name, "", rc.AutoAck, false, false, false, nil)
 	if err != nil {
 		rmq.Logger.Printf("[Queue]: failed to consume queue: %s | error : %v", rc.Queue, err.Error())
+		os.Exit(1)
 	}
 
 	go func() {
